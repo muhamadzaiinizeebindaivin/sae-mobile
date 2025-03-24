@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; // Add this
 import 'package:go_router/go_router.dart';
 import 'providers/supabase_provider.dart';
 import 'views/welcome_page.dart';
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
   final bool isConnected;
   final SupabaseProvider supabaseProvider;
   
-  MyApp({required this.isConnected, required this.supabaseProvider});
+  MyApp({required this.isConnected, required this.supabaseProvider, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +69,15 @@ class MyApp extends StatelessWidget {
       ),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('fr', 'FR'),
+      ],
     );
   }
 }

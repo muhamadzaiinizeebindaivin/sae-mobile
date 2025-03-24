@@ -3,11 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:form_builder_validators/form_builder_validators.dart';
 import '../providers/supabase_provider.dart';
 
 class RegisterPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
-  
+
   const RegisterPage({Key? key, required this.supabaseProvider}) : super(key: key);
 
   @override
@@ -15,14 +17,7 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _nomController = TextEditingController();
-  final _prenomController = TextEditingController();
-  final _telephoneController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  
+  final _formKey = GlobalKey<FormBuilderState>();
   DateTime? _selectedDate;
   String? _selectedSexe;
   bool _isLoading = false;
@@ -58,7 +53,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.saveAndValidate()) return;
     if (_selectedDate == null) {
       setState(() {
         _errorMessage = 'Veuillez sélectionner votre date de naissance';
@@ -78,20 +73,21 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
+      final formValue = _formKey.currentState!.value;
       final authResponse = await Supabase.instance.client.auth.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+        email: formValue['email'].trim(),
+        password: formValue['password'],
       );
 
       if (authResponse.user != null) {
         await Supabase.instance.client.from('UTILISATEUR').insert({
-          'nomUtilisateur': _nomController.text.trim(),
-          'prenomUtilisateur': _prenomController.text.trim(),
+          'nomUtilisateur': formValue['nom'].trim(),
+          'prenomUtilisateur': formValue['prenom'].trim(),
           'sexeUtilisateur': _selectedSexe,
           'ddnUtilisateur': _selectedDate!.toIso8601String().split('T')[0],
-          'telephoneUtilisateur': _telephoneController.text.trim(),
-          'emailUtilisateur': _emailController.text.trim(),
-          'mdpUtilisateur': _passwordController.text, 
+          'telephoneUtilisateur': formValue['telephone'].trim(),
+          'emailUtilisateur': formValue['email'].trim(),
+          'mdpUtilisateur': formValue['password'],
         });
 
         if (mounted) {
@@ -120,20 +116,9 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   @override
-  void dispose() {
-    _nomController.dispose();
-    _prenomController.dispose();
-    _telephoneController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final goldColor = Theme.of(context).primaryColor;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -158,17 +143,14 @@ class _RegisterPageState extends State<RegisterPage> {
                   color: goldColor,
                   size: 28,
                 ),
-                onPressed: () {
-                  context.go('/'); 
-                },
+                onPressed: () => context.go('/'),
               ),
             ),
-            
             Center(
               child: SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                  child: Form(
+                  child: FormBuilder(
                     key: _formKey,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -207,8 +189,8 @@ class _RegisterPageState extends State<RegisterPage> {
                         Row(
                           children: [
                             Expanded(
-                              child: TextFormField(
-                                controller: _nomController,
+                              child: FormBuilderTextField(
+                                name: 'nom',
                                 decoration: InputDecoration(
                                   labelText: 'Nom',
                                   prefixIcon: Icon(Icons.person, color: goldColor),
@@ -220,18 +202,15 @@ class _RegisterPageState extends State<RegisterPage> {
                                     borderSide: BorderSide(color: goldColor, width: 2),
                                   ),
                                 ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Veuillez entrer votre nom';
-                                  }
-                                  return null;
-                                },
+                                validator: FormBuilderValidators.required(
+                                  errorText: 'Veuillez entrer votre nom',
+                                ),
                               ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: TextFormField(
-                                controller: _prenomController,
+                              child: FormBuilderTextField(
+                                name: 'prenom',
                                 decoration: InputDecoration(
                                   labelText: 'Prénom',
                                   prefixIcon: Icon(Icons.person_outline, color: goldColor),
@@ -243,12 +222,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                     borderSide: BorderSide(color: goldColor, width: 2),
                                   ),
                                 ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Veuillez entrer votre prénom';
-                                  }
-                                  return null;
-                                },
+                                validator: FormBuilderValidators.required(
+                                  errorText: 'Veuillez entrer votre prénom',
+                                ),
                               ),
                             ),
                           ],
@@ -276,8 +252,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          value: _selectedSexe,
+                        FormBuilderDropdown<String>(
+                          name: 'sexe',
                           decoration: InputDecoration(
                             labelText: 'Sexe',
                             prefixIcon: Icon(Icons.people, color: goldColor),
@@ -289,12 +265,12 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderSide: BorderSide(color: goldColor, width: 2),
                             ),
                           ),
-                          items: _sexeOptions.map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
+                          items: _sexeOptions
+                              .map((value) => DropdownMenuItem(
+                                    value: value,
+                                    child: Text(value),
+                                  ))
+                              .toList(),
                           onChanged: (newValue) {
                             setState(() {
                               _selectedSexe = newValue;
@@ -302,8 +278,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _telephoneController,
+                        FormBuilderTextField(
+                          name: 'telephone',
                           keyboardType: TextInputType.phone,
                           decoration: InputDecoration(
                             labelText: 'Téléphone',
@@ -316,19 +292,17 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderSide: BorderSide(color: goldColor, width: 2),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Veuillez entrer votre numéro de téléphone';
-                            }
-                            if (!RegExp(r'^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$').hasMatch(value)) {
-                              return 'Veuillez entrer un numéro de téléphone valide';
-                            }
-                            return null;
-                          },
+                          validator: FormBuilderValidators.compose([
+                            FormBuilderValidators.required(
+                                errorText: 'Veuillez entrer votre numéro de téléphone'),
+                            FormBuilderValidators.match(
+                                RegExp(r'^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$'),
+                                errorText: 'Veuillez entrer un numéro de téléphone valide'),
+                          ]),
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _emailController,
+                        FormBuilderTextField(
+                          name: 'email',
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
                             labelText: 'Email',
@@ -342,19 +316,16 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderSide: BorderSide(color: goldColor, width: 2),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Veuillez entrer votre email';
-                            }
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                              return 'Veuillez entrer un email valide';
-                            }
-                            return null;
-                          },
+                          validator: FormBuilderValidators.compose([
+                            FormBuilderValidators.required(
+                                errorText: 'Veuillez entrer votre email'),
+                            FormBuilderValidators.email(
+                                errorText: 'Veuillez entrer un email valide'),
+                          ]),
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
+                        FormBuilderTextField(
+                          name: 'password',
                           obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             labelText: 'Mot de passe',
@@ -378,26 +349,26 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderSide: BorderSide(color: goldColor, width: 2),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Veuillez entrer un mot de passe';
-                            }
-                            if (value.length < 6) {
-                              return 'Le mot de passe doit contenir au moins 6 caractères';
-                            }
-                            return null;
-                          },
+                          validator: FormBuilderValidators.compose([
+                            FormBuilderValidators.required(
+                                errorText: 'Veuillez entrer un mot de passe'),
+                            FormBuilderValidators.minLength(6,
+                                errorText:
+                                    'Le mot de passe doit contenir au moins 6 caractères'),
+                          ]),
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _confirmPasswordController,
+                        FormBuilderTextField(
+                          name: 'confirmPassword',
                           obscureText: _obscureConfirmPassword,
                           decoration: InputDecoration(
                             labelText: 'Confirmer le mot de passe',
                             prefixIcon: Icon(Icons.lock_outline, color: goldColor),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                                _obscureConfirmPassword
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
                                 color: goldColor,
                               ),
                               onPressed: () {
@@ -414,15 +385,16 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderSide: BorderSide(color: goldColor, width: 2),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Veuillez confirmer votre mot de passe';
-                            }
-                            if (value != _passwordController.text) {
-                              return 'Les mots de passe ne correspondent pas';
-                            }
-                            return null;
-                          },
+                          validator: FormBuilderValidators.compose([
+                            FormBuilderValidators.required(
+                                errorText: 'Veuillez confirmer votre mot de passe'),
+                            (value) {
+                              if (value != _formKey.currentState?.fields['password']?.value) {
+                                return 'Les mots de passe ne correspondent pas';
+                              }
+                              return null;
+                            },
+                          ]),
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton(
@@ -454,9 +426,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               style: GoogleFonts.raleway(),
                             ),
                             TextButton(
-                              onPressed: () {
-                                context.go('/login');
-                              },
+                              onPressed: () => context.go('/login'),
                               child: Text(
                                 'Se connecter',
                                 style: GoogleFonts.raleway(
