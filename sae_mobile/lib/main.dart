@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // Add this
+import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:go_router/go_router.dart';
 import 'providers/supabase_provider.dart';
 import 'views/welcome_page.dart';
@@ -8,6 +8,7 @@ import 'views/register_page.dart';
 import 'views/home_page.dart';
 import 'views/restaurants_page.dart';
 import 'views/cuisines_page.dart';
+import 'views/cuisine_details_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +52,17 @@ class MyApp extends StatelessWidget {
         GoRoute(
           path: '/cuisines',
           builder: (context, state) => CuisinesPage(supabaseProvider: supabaseProvider),
+        ),
+        GoRoute(
+          path: '/cuisine-details',
+          builder: (context, state) {
+            final Map<String, dynamic> extras = state.extra as Map<String, dynamic>;
+            return CuisineDetailsPage(
+              supabaseProvider: supabaseProvider,
+              cuisineId: extras['cuisineId'],
+              cuisineName: extras['cuisineName'],
+            );
+          },
         ),
       ],
     );
