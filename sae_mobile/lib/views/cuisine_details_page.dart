@@ -4,22 +4,29 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
 
-class CuisinesPage extends StatefulWidget {
+class CuisineDetailsPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
+  final int cuisineId;
+  final String cuisineName;
   
-  const CuisinesPage({
+  const CuisineDetailsPage({
     Key? key,
     required this.supabaseProvider,
+    required this.cuisineId,
+    required this.cuisineName,
   }) : super(key: key);
 
   @override
-  _CuisinesPageState createState() => _CuisinesPageState();
+  _CuisineDetailsPageState createState() => _CuisineDetailsPageState();
 }
 
-class _CuisinesPageState extends State<CuisinesPage> {
+class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
+  List<Map<String, dynamic>> restaurants = [];
+  List<Map<String, dynamic>> allRestaurants = [];
   List<Map<String, dynamic>> allCuisines = [];
-  List<Map<String, dynamic>> filteredCuisines = [];
-  Map<int, int> restaurantCount = {};
+  Map<int, List<int>> restaurantCuisines = {};
+  Map<int, Map<String, dynamic>> cuisinesById = {};
+  List<String> restaurantTypes = [];
   bool isLoading = true;
   
   int currentPage = 0;
@@ -27,14 +34,15 @@ class _CuisinesPageState extends State<CuisinesPage> {
   int totalPages = 0;
   
   final TextEditingController searchController = TextEditingController();
+  List<Map<String, dynamic>> filteredRestaurants = [];
   
   @override
   void initState() {
     super.initState();
-    _loadCuisines();
+    _loadData();
     
     searchController.addListener(() {
-      _filterCuisines();
+      _filterRestaurants();
     });
   }
   
@@ -44,52 +52,88 @@ class _CuisinesPageState extends State<CuisinesPage> {
     super.dispose();
   }
   
-  Future<void> _loadCuisines() async {
+  String formatRestaurantType(String type) {
+    if (type.isEmpty) return 'Non spécifié';
+    
+    String formatted = type.replaceAll(RegExp(r'[-_]'), ' ');
+    
+    return formatted[0].toUpperCase() + formatted.substring(1);
+  }
+  
+  Future<void> _loadData() async {
+    setState(() {
+      isLoading = true;
+    });
+    
     try {
-      final response = await Supabase.instance.client
+      final restaurantResponse = await Supabase.instance.client
+          .from('restaurant')
+          .select('*')
+          .order('nomrestaurant', ascending: true);
+      List<Map<String, dynamic>> restaurantsList = List<Map<String, dynamic>>.from(restaurantResponse);
+      
+      final cuisineResponse = await Supabase.instance.client
           .from('cuisine')
           .select('*')
           .order('nomcuisine', ascending: true);
-      
-      List<Map<String, dynamic>> cuisinesList = List<Map<String, dynamic>>.from(response);
+      List<Map<String, dynamic>> cuisinesList = List<Map<String, dynamic>>.from(cuisineResponse);
       
       final servirResponse = await Supabase.instance.client
           .from('servir')
-          .select('idcuisine, idrestaurant');
-      
+          .select('idrestaurant, idcuisine');
       List<Map<String, dynamic>> servirList = List<Map<String, dynamic>>.from(servirResponse);
       
-      Map<int, int> countMap = {};
-      for (var servir in servirList) {
-        int cuisineId = servir['idcuisine'];
-        countMap[cuisineId] = (countMap[cuisineId] ?? 0) + 1;
+      Map<int, Map<String, dynamic>> cuisinesMap = {};
+      for (var cuisine in cuisinesList) {
+        cuisinesMap[cuisine['idcuisine']] = cuisine;
       }
       
+      Map<int, List<int>> restaurantCuisinesMap = {};
+      for (var servir in servirList) {
+        int restaurantId = servir['idrestaurant'];
+        int cuisineId = servir['idcuisine'];
+        if (!restaurantCuisinesMap.containsKey(restaurantId)) {
+          restaurantCuisinesMap[restaurantId] = [];
+        }
+        restaurantCuisinesMap[restaurantId]!.add(cuisineId);
+      }
+      
+      List<Map<String, dynamic>> cuisineRestaurants = restaurantsList
+          .where((restaurant) {
+            final int restaurantId = restaurant['idrestaurant'];
+            return restaurantCuisinesMap.containsKey(restaurantId) &&
+                   restaurantCuisinesMap[restaurantId]!.contains(widget.cuisineId);
+          })
+          .toList();
+      
       setState(() {
+        allRestaurants = restaurantsList;
         allCuisines = cuisinesList;
-        filteredCuisines = cuisinesList;
-        restaurantCount = countMap;
+        restaurantCuisines = restaurantCuisinesMap;
+        cuisinesById = cuisinesMap;
+        restaurants = cuisineRestaurants;
+        filteredRestaurants = cuisineRestaurants;
         isLoading = false;
         _updateTotalPages();
       });
     } catch (e) {
-      print('Erreur lors du chargement des cuisines: $e');
+      print('Erreur lors du chargement des données: $e');
       setState(() {
         isLoading = false;
       });
     }
   }
-
-  void _filterCuisines() {
+  
+  void _filterRestaurants() {
     final query = searchController.text.toLowerCase();
     
     setState(() {
       if (query.isEmpty) {
-        filteredCuisines = allCuisines;
+        filteredRestaurants = restaurants;
       } else {
-        filteredCuisines = allCuisines
-            .where((cuisine) => 
-                cuisine['nomcuisine'].toString().toLowerCase().startsWith(query))
+        filteredRestaurants = restaurants
+            .where((restaurant) => 
+                restaurant['nomrestaurant'].toString().toLowerCase().startsWith(query))
             .toList();
       }
       currentPage = 0;
@@ -98,47 +142,32 @@ class _CuisinesPageState extends State<CuisinesPage> {
   }
   
   void _updateTotalPages() {
-    totalPages = (filteredCuisines.length / itemsPerPage).ceil();
+    totalPages = (filteredRestaurants.length / itemsPerPage).ceil();
     if (totalPages == 0) totalPages = 1;
   }
   
-  List<Map<String, dynamic>> _getPaginatedCuisines() {
+  List<Map<String, dynamic>> _getPaginatedRestaurants() {
     final startIndex = currentPage * itemsPerPage;
-    final endIndex = (startIndex + itemsPerPage) > filteredCuisines.length
-        ? filteredCuisines.length
+    final endIndex = (startIndex + itemsPerPage) > filteredRestaurants.length
+        ? filteredRestaurants.length
         : startIndex + itemsPerPage;
     
-    if (startIndex >= filteredCuisines.length) {
+    if (startIndex >= filteredRestaurants.length) {
       return [];
     }
     
-    return filteredCuisines.sublist(startIndex, endIndex);
+    return filteredRestaurants.sublist(startIndex, endIndex);
   }
-
-  String _formatCuisineName(String text) {
-    if (text.isEmpty) return text;
-    
-    String formattedText = text.replaceAll('_', ' ').replaceAll('-', ' ');
-    
-    return formattedText[0].toUpperCase() + formattedText.substring(1).toLowerCase();
-  }
-
-  void _navigateToRestaurantsByCuisine(int cuisineId, String cuisineName) {
-    context.go('/cuisine-details', extra: {
-      'cuisineId': cuisineId,
-      'cuisineName': cuisineName,
-    });
-  }
-
+  
   @override
   Widget build(BuildContext context) {
     final goldColor = Color(0xFFD4AF37);
-    final paginatedCuisines = _getPaginatedCuisines();
+    final paginatedRestaurants = _getPaginatedRestaurants();
     
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Types de cuisine',
+          'Cuisine ${widget.cuisineName}',
           style: GoogleFonts.raleway(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -148,19 +177,76 @@ class _CuisinesPageState extends State<CuisinesPage> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/home'),
+          onPressed: () => context.go('/cuisines'),
         ),
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator(color: goldColor))
           : Column(
               children: [
+                Container(
+                  height: 120,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: goldColor.withOpacity(0.1),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: 0.7,
+                          child: Image.asset(
+                            'assets/images/cuisine.webp',
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black.withOpacity(0.3),
+                        ),
+                      ),
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              widget.cuisineName,
+                              style: GoogleFonts.raleway(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: goldColor,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${filteredRestaurants.length} restaurant${filteredRestaurants.length > 1 ? 's' : ''}',
+                                style: GoogleFonts.raleway(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: TextField(
                     controller: searchController,
                     decoration: InputDecoration(
-                      hintText: 'Rechercher un type de cuisine...',
+                      hintText: 'Rechercher un restaurant...',
                       prefixIcon: Icon(Icons.search, color: goldColor),
                       suffixIcon: searchController.text.isNotEmpty
                           ? IconButton(
@@ -185,10 +271,12 @@ class _CuisinesPageState extends State<CuisinesPage> {
                 ),
                 
                 Expanded(
-                  child: filteredCuisines.isEmpty
+                  child: filteredRestaurants.isEmpty
                     ? Center(
                         child: Text(
-                          'Aucun type de cuisine trouvé commençant par "${searchController.text}"',
+                          searchController.text.isNotEmpty
+                            ? 'Aucun restaurant trouvé pour "${searchController.text}"'
+                            : 'Aucun restaurant proposant cette cuisine',
                           style: GoogleFonts.raleway(
                             fontSize: 18,
                             color: Colors.black87,
@@ -201,15 +289,15 @@ class _CuisinesPageState extends State<CuisinesPage> {
                         child: GridView.builder(
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            childAspectRatio: 1.0,
+                            childAspectRatio: 0.85,
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
                           ),
-                          itemCount: paginatedCuisines.length,
+                          itemCount: paginatedRestaurants.length,
                           itemBuilder: (context, index) {
-                            final cuisine = paginatedCuisines[index];
-                            final nbRestaurants = restaurantCount[cuisine['idcuisine']] ?? 0;
-                            final cuisineName = _formatCuisineName(cuisine['nomcuisine'] ?? 'Sans nom');
+                            final restaurant = paginatedRestaurants[index];
+                            final restaurantName = restaurant['nomrestaurant'] ?? 'Sans nom';
+                            final restaurantType = formatRestaurantType(restaurant['typerestaurant']?.toString() ?? '');
                             
                             return Card(
                               elevation: 4,
@@ -218,29 +306,14 @@ class _CuisinesPageState extends State<CuisinesPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: InkWell(
-                                onTap: () {
-                                  _navigateToRestaurantsByCuisine(
-                                    cuisine['idcuisine'],
-                                    cuisineName
-                                  );
-                                },
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
                                     Expanded(
-                                      flex: 1,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: goldColor.withOpacity(0.1),
-                                        ),
-                                        child: Center(
-                                          child: Image.asset(
-                                            'assets/images/cuisine.webp',
-                                            fit: BoxFit.cover,
-                                            height: double.infinity,
-                                            width: double.infinity,
-                                          ),
-                                        ),
+                                      flex: 2,
+                                      child: Image.asset(
+                                        'assets/images/restaurant.jpg',
+                                        fit: BoxFit.cover,
                                       ),
                                     ),
                                     Expanded(
@@ -248,33 +321,35 @@ class _CuisinesPageState extends State<CuisinesPage> {
                                       child: Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
                                             Text(
-                                              cuisineName,
+                                              restaurantName,
                                               style: GoogleFonts.raleway(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.bold,
                                               ),
-                                              textAlign: TextAlign.center,
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 1,
                                             ),
-                                            SizedBox(height: 8),
-                                            Container(
-                                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: goldColor.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                '$nbRestaurants restaurant${nbRestaurants > 1 ? 's' : ''}',
-                                                style: GoogleFonts.raleway(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: goldColor,
+                                            SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.store, size: 16, color: goldColor),
+                                                SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    restaurantType,
+                                                    style: GoogleFonts.raleway(
+                                                      fontSize: 12,
+                                                      color: Colors.black54,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                    maxLines: 1,
+                                                  ),
                                                 ),
-                                              ),
+                                              ],
                                             ),
                                           ],
                                         ),
@@ -289,7 +364,7 @@ class _CuisinesPageState extends State<CuisinesPage> {
                       ),
                 ),
                 
-                if (!isLoading && filteredCuisines.isNotEmpty)
+                if (!isLoading && filteredRestaurants.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: Row(

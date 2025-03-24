@@ -7,6 +7,7 @@ import 'views/register_page.dart';
 import 'views/home_page.dart';
 import 'views/restaurants_page.dart';
 import 'views/cuisines_page.dart';
+import 'views/cuisine_details_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +21,7 @@ class MyApp extends StatelessWidget {
   final SupabaseProvider supabaseProvider;
   
   MyApp({required this.isConnected, required this.supabaseProvider});
-
+  
   @override
   Widget build(BuildContext context) {
     final goldColor = Color(0xFFD4AF37);
@@ -51,9 +52,20 @@ class MyApp extends StatelessWidget {
           path: '/cuisines',
           builder: (context, state) => CuisinesPage(supabaseProvider: supabaseProvider),
         ),
+        GoRoute(
+          path: '/cuisine-details',
+          builder: (context, state) {
+            final Map<String, dynamic> extras = state.extra as Map<String, dynamic>;
+            return CuisineDetailsPage(
+              supabaseProvider: supabaseProvider,
+              cuisineId: extras['cuisineId'],
+              cuisineName: extras['cuisineName'],
+            );
+          },
+        ),
       ],
     );
-
+    
     return MaterialApp.router(
       title: 'IUTables\'O',
       theme: ThemeData(
