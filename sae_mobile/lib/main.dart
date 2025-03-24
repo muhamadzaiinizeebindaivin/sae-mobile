@@ -1,40 +1,73 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
-import 'restaurant.dart';
+import 'package:go_router/go_router.dart';
+import 'providers/supabase_provider.dart';
+import 'views/welcome_page.dart';
+import 'views/login_page.dart';
+import 'views/register_page.dart';
+import 'views/home_page.dart';
+import 'views/restaurants_page.dart';
+import 'views/cuisines_page.dart';
 
-
-void main() {
-  runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final supabaseProvider = SupabaseProvider();
+  final isConnected = await supabaseProvider.initialize();
+  runApp(MyApp(isConnected: isConnected, supabaseProvider: supabaseProvider));
 }
 
 class MyApp extends StatelessWidget {
+  final bool isConnected;
+  final SupabaseProvider supabaseProvider;
+  
+  MyApp({required this.isConnected, required this.supabaseProvider});
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
+    final goldColor = Color(0xFFD4AF37);
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => WelcomePage(),
+        ),
+        GoRoute(
+          path: '/login',
+          builder: (context, state) => LoginPage(supabaseProvider: supabaseProvider),
+        ),
+        GoRoute(
+          path: '/register',
+          builder: (context, state) => RegisterPage(supabaseProvider: supabaseProvider),
+        ),
+        GoRoute(
+          path: '/home',
+          builder: (context, state) => HomePage(supabaseProvider: supabaseProvider),
+        ),
+        GoRoute(
+          path: '/restaurants',
+          builder: (context, state) => RestaurantsPage(supabaseProvider: supabaseProvider),
+        ),
+        GoRoute(
+          path: '/cuisines',
+          builder: (context, state) => CuisinesPage(supabaseProvider: supabaseProvider),
+        ),
+      ],
+    );
+
+    return MaterialApp.router(
+      title: 'IUTables\'O',
       theme: ThemeData(
-        primaryColor: Color(0xFFFA8C3B), // Orange légère
-        scaffoldBackgroundColor: Colors.white, // Fond blanc
-        textTheme: TextTheme(
-          bodyLarge: TextStyle(color: Colors.black),
-          bodyMedium: TextStyle(color: Colors.grey[700]),
-          titleLarge: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF3E3E3E),
-          ),
-          titleMedium: TextStyle(
-            fontSize: 18,
-            color: Colors.grey[600],
-          ),
+        primaryColor: goldColor,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: goldColor,
+          primary: goldColor,
         ),
-        cardColor: Colors.grey[50], // Carte avec un léger beige
-        buttonTheme: ButtonThemeData(
-          buttonColor: Color(0xFFFA8C3B), // Orange léger pour les boutons
-          textTheme: ButtonTextTheme.primary,
-        ),
+        fontFamily: 'Raleway',
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        useMaterial3: true,
       ),
-      home: HomeScreen(),
+      routerConfig: router,
+      debugShowCheckedModeBanner: false,
     );
   }
 }
