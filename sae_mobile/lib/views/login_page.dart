@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:form_builder_validators/form_builder_validators.dart';
 import '../providers/supabase_provider.dart';
 
 class LoginPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
-  
+
   const LoginPage({Key? key, required this.supabaseProvider}) : super(key: key);
 
   @override
@@ -14,30 +16,29 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormBuilderState>();
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
 
   Future<void> _signIn() async {
-    if (!_formKey.currentState!.validate()) return;
-    
+    if (!_formKey.currentState!.saveAndValidate()) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
+      final formValue = _formKey.currentState!.value;
       final response = await Supabase.instance.client.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+        email: formValue['email'].trim(),
+        password: formValue['password'],
       );
-      
+
       if (response.user != null) {
         if (mounted) {
-          context.go('/home'); 
+          context.go('/home');
         }
       } else {
         setState(() {
@@ -56,16 +57,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final goldColor = Theme.of(context).primaryColor;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -90,17 +84,14 @@ class _LoginPageState extends State<LoginPage> {
                   color: goldColor,
                   size: 28,
                 ),
-                onPressed: () {
-                  context.go('/'); 
-                },
+                onPressed: () => context.go('/'),
               ),
             ),
-            
             Center(
               child: SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                  child: Form(
+                  child: FormBuilder(
                     key: _formKey,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -136,8 +127,8 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                         const SizedBox(height: 24),
-                        TextFormField(
-                          controller: _emailController,
+                        FormBuilderTextField(
+                          name: 'email',
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
                             labelText: 'Email',
@@ -151,19 +142,14 @@ class _LoginPageState extends State<LoginPage> {
                               borderSide: BorderSide(color: goldColor, width: 2),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Veuillez entrer votre email';
-                            }
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                              return 'Veuillez entrer un email valide';
-                            }
-                            return null;
-                          },
+                          validator: FormBuilderValidators.compose([
+                            FormBuilderValidators.required(errorText: 'Veuillez entrer votre email'),
+                            FormBuilderValidators.email(errorText: 'Veuillez entrer un email valide'),
+                          ]),
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
+                        FormBuilderTextField(
+                          name: 'password',
                           obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             labelText: 'Mot de passe',
@@ -191,6 +177,29 @@ class _LoginPageState extends State<LoginPage> {
                             if (value == null || value.isEmpty) {
                               return 'Veuillez entrer votre mot de passe';
                             }
+
+                            List<String> errors = [];
+
+                            if (value.length < 8) {
+                              errors.add('8 caractères min.');
+                            }
+                            if (!RegExp(r'(?=.*[A-Z])').hasMatch(value)) {
+                              errors.add('1 majuscule');
+                            }
+                            if (!RegExp(r'(?=.*[a-z])').hasMatch(value)) {
+                              errors.add('1 minuscule');
+                            }
+                            if (!RegExp(r'(?=.*\d)').hasMatch(value)) {
+                              errors.add('1 chiffre');
+                            }
+                            if (!RegExp(r'(?=.*[!@#$%^&*(),.?":{}|<>])').hasMatch(value)) {
+                              errors.add('1 symbole');
+                            }
+
+                            if (errors.isNotEmpty) {
+                              return 'Le mot de passe doit contenir : ${errors.join(', ')}';
+                            }
+
                             return null;
                           },
                         ),
@@ -224,9 +233,7 @@ class _LoginPageState extends State<LoginPage> {
                               style: GoogleFonts.raleway(),
                             ),
                             TextButton(
-                              onPressed: () {
-                                context.go('/register');
-                              },
+                              onPressed: () => context.go('/register'),
                               child: Text(
                                 'S\'inscrire',
                                 style: GoogleFonts.raleway(
