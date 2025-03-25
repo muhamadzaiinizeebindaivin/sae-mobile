@@ -1,0 +1,337 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/supabase_provider.dart';
+
+class RestaurantDetailsPage extends StatefulWidget {
+  final SupabaseProvider supabaseProvider;
+  final int restaurantId;
+
+  const RestaurantDetailsPage({
+    Key? key,
+    required this.supabaseProvider,
+    required this.restaurantId,
+  }) : super(key: key);
+
+  @override
+  _RestaurantDetailsPageState createState() => _RestaurantDetailsPageState();
+}
+
+class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
+  Map<String, dynamic>? restaurantDetails;
+  Map<String, dynamic>? locationDetails;
+  List<Map<String, dynamic>> cuisines = [];
+  List<Map<String, dynamic>> openingHours = [];
+  bool isLoading = true;
+  
+  final Color goldColor = Color(0xFFD4AF37);
+  final Color darkBackgroundColor = Color(0xFF1E1E1E);
+  final Color softGrayColor = Color(0xFFF5F5F5);
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRestaurantDetails();
+  }
+
+  Future<void> _fetchRestaurantDetails() async {
+    try {
+      final restaurantResponse = await Supabase.instance.client
+        .from('restaurant')
+        .select('*, localisation(*)')
+        .eq('idrestaurant', widget.restaurantId)
+        .single();
+
+      final cuisinesResponse = await Supabase.instance.client
+        .from('servir')
+        .select('cuisine(idcuisine, nomcuisine)')
+        .eq('idrestaurant', widget.restaurantId);
+
+      final openingResponse = await Supabase.instance.client
+        .from('proposer')
+        .select('ouverture(jourouverture), horaire')
+        .eq('idrestaurant', widget.restaurantId);
+
+      setState(() {
+        restaurantDetails = restaurantResponse;
+        locationDetails = restaurantDetails?['localisation'];
+        cuisines = List<Map<String, dynamic>>.from(
+          cuisinesResponse.map((item) => item['cuisine'])
+        );
+        openingHours = List<Map<String, dynamic>>.from(openingResponse);
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Erreur lors du chargement des détails du restaurant: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  String _formatPhoneNumber(String? phoneNumber) {
+    if (phoneNumber == null || phoneNumber.isEmpty) return 'Non spécifié';
+    
+    String cleanNumber = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    
+    if (cleanNumber.length != 11) return phoneNumber;
+    
+    return '+${cleanNumber.substring(0,2)} '
+          '${cleanNumber.substring(2,3)} '
+          '${cleanNumber.substring(3,5)} '
+          '${cleanNumber.substring(5,7)} '
+          '${cleanNumber.substring(7,9)} '
+          '${cleanNumber.substring(9)}';
+  }
+
+  String _formatRestaurantType(String? type) {
+    if (type == null || type.isEmpty) return 'Non spécifié';
+    String formattedType = type.replaceAll('-', ' ').replaceAll('_', ' ');
+    formattedType = formattedType.replaceAll('cafe', 'café');
+    List<String> words = formattedType.split(' ');
+    words = words.map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).toList();
+    return words.join(' ');
+  }
+
+  String _formatCuisineName(String text) {
+    if (text.isEmpty) return 'Non spécifié';
+    String formattedText = text.replaceAll('_', ' ').replaceAll('-', ' ');
+    return formattedText[0].toUpperCase() + formattedText.substring(1).toLowerCase();
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: goldColor, width: 2),
+          ),
+        ),
+        child: Text(
+          title,
+          style: GoogleFonts.raleway(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: goldColor,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: softGrayColor,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text(
+                label,
+                style: GoogleFonts.raleway(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: darkBackgroundColor,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                value,
+                style: GoogleFonts.raleway(
+                  fontSize: 15,
+                  color: darkBackgroundColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        context.go('/restaurants');
+        return false; 
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          elevation: 0,
+          title: Text(
+            'Détails du Restaurant',
+            style: GoogleFonts.raleway(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: goldColor,
+          centerTitle: true,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.go('/restaurants'), 
+          ),
+        ),
+        body: isLoading
+            ? Center(child: CircularProgressIndicator(color: goldColor))
+            : restaurantDetails == null
+                ? Center(
+                    child: Text(
+                      'Restaurant non trouvé', 
+                      style: GoogleFonts.raleway(fontSize: 18),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: Image.asset(
+                                  'assets/images/restaurant.jpg',
+                                  width: double.infinity,
+                                  height: 250,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.only(
+                                      bottomLeft: Radius.circular(15),
+                                      bottomRight: Radius.circular(15),
+                                    ),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [
+                                        Colors.black.withOpacity(0.7),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        restaurantDetails?['nomrestaurant'] ?? 'Sans nom',
+                                        style: GoogleFonts.raleway(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          _buildSectionTitle('Informations Générales'),
+                          _buildInfoRow('Nom', restaurantDetails?['nomrestaurant'] ?? 'Non spécifié'),
+                          _buildInfoRow('Étoiles', 
+                            (restaurantDetails?['etoilerestaurant'] != null 
+                              ? '${restaurantDetails!['etoilerestaurant']}/5' 
+                              : 'Non spécifié')),
+                          _buildInfoRow('Marque', restaurantDetails?['marquerestaurant'] ?? 'Non spécifié'),
+                          _buildInfoRow('Gérant', restaurantDetails?['gerantrestaurant'] ?? 'Non spécifié'),
+                          _buildInfoRow('SIRET', restaurantDetails?['siretrestaurant'] ?? 'Non spécifié'),
+                          _buildInfoRow('Capacité', 
+                            (restaurantDetails?['capaciterestaurant'] != null 
+                              ? '${restaurantDetails!['capaciterestaurant']} personnes' 
+                              : 'Non spécifié')),
+
+                          _buildSectionTitle('Cuisine'),
+                          _buildInfoRow('Établissement', 
+                            _formatRestaurantType(restaurantDetails?['typerestaurant'])),
+                          _buildInfoRow('Cuisine', 
+                            cuisines.isNotEmpty 
+                              ? cuisines.map((c) => _formatCuisineName(c['nomcuisine'])).join(', ') 
+                              : 'Non spécifié'),
+                          _buildInfoRow('Végétarien', 
+                            restaurantDetails?['vegetarienrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Vegan', 
+                            restaurantDetails?['veganrestaurant'] == true ? 'Oui' : 'Non'),
+
+                          _buildSectionTitle('Localisation'),
+                          _buildInfoRow('Pays', locationDetails?['payslocalisation'] ?? 'Non spécifié'),
+                          _buildInfoRow('Région', locationDetails?['regionlocalisation'] ?? 'Non spécifié'),
+                          _buildInfoRow('Ville', locationDetails?['villelocalisation'] ?? 'Non spécifié'),
+                          _buildInfoRow('Département', locationDetails?['departementlocalisation'] ?? 'Non spécifié'),
+                          _buildInfoRow('Adresse', 
+                            locationDetails?['adresselocalisation'] != null 
+                              ? '${locationDetails!['adresselocalisation']}, '
+                                '${locationDetails!['codevillelocalisation'] ?? ''} '
+                                '${locationDetails!['villelocalisation'] ?? ''}'
+                              : 'Non spécifié'),
+                          _buildInfoRow('Téléphone', 
+                            _formatPhoneNumber(restaurantDetails?['telephonerestaurant'])), 
+                          _buildInfoRow('Coordonnées', 
+                            locationDetails?['coordonneeslocalisation'] ?? 'Non spécifié'),
+                          _buildInfoRow('OpenStreetMap', 
+                            locationDetails?['cartelien'] ?? 'Non spécifié'),
+
+                          _buildSectionTitle('Services'),
+                          _buildInfoRow('Livraison', 
+                            restaurantDetails?['livraisonrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('À emporter', 
+                            restaurantDetails?['emporterrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Drive', 
+                            restaurantDetails?['driverestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Wi-Fi/Internet', 
+                            restaurantDetails?['internetrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Accès handicapé', 
+                            restaurantDetails?['handicaprestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Espace fumeur', 
+                            restaurantDetails?['fumerrestaurant'] == true ? 'Oui' : 'Non'),
+
+                          _buildSectionTitle('Liens Externes'),
+                          _buildInfoRow('Site Web', 
+                            restaurantDetails?['sitewebrestaurant'] ?? 'Non spécifié'),
+                          _buildInfoRow('Facebook', 
+                            restaurantDetails?['facebookrestaurant'] ?? 'Non spécifié'),
+                          _buildInfoRow('Wikidata', 
+                            restaurantDetails?['wikidatalien'] ?? 'Non spécifié'),
+
+                          _buildSectionTitle('Horaires d\'ouverture'),
+                          openingHours.isNotEmpty
+                            ? Column(
+                                children: openingHours.map((opening) => _buildInfoRow(
+                                  _formatCuisineName(opening['ouverture']['jourouverture']),
+                                  opening['horaire'] ?? 'Non spécifié'
+                                )).toList(),
+                              )
+                            : _buildInfoRow('Horaires', 'Non spécifié'),
+                        ],
+                      ),
+                    ),
+                  ),
+      ),
+    );
+  }
+}

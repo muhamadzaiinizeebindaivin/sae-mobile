@@ -306,6 +306,11 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: InkWell(
+                                onTap: () {
+                                  context.go('/restaurant-details', extra: {
+                                    'restaurantId': restaurant['idrestaurant']
+                                  });
+                                },
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [

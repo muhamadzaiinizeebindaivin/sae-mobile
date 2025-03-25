@@ -754,6 +754,11 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                               ),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  context.go('/restaurant-details', extra: {
+                                    'restaurantId': restaurant['idrestaurant']
+                                  });
+                                },
                                 child: Row(
                                   children: [
                                     Container(

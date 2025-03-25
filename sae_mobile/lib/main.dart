@@ -9,6 +9,7 @@ import 'views/home_page.dart';
 import 'views/restaurants_page.dart';
 import 'views/cuisines_page.dart';
 import 'views/cuisine_details_page.dart';
+import 'views/restaurant_details_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,6 +62,16 @@ class MyApp extends StatelessWidget {
               supabaseProvider: supabaseProvider,
               cuisineId: extras['cuisineId'],
               cuisineName: extras['cuisineName'],
+            );
+          },
+        ),
+        GoRoute(
+          path: '/restaurant-details',
+          builder: (context, state) {
+            final Map<String, dynamic> extras = state.extra as Map<String, dynamic>;
+            return RestaurantDetailsPage(
+              supabaseProvider: supabaseProvider,
+              restaurantId: extras['restaurantId'],
             );
           },
         ),
