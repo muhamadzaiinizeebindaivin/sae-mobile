@@ -755,103 +755,119 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () {
-                                  context.go('/restaurant-details', extra: {
+                                  context.push('/restaurant-details', extra: {
                                     'restaurantId': restaurant['idrestaurant']
                                   });
                                 },
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 100,
-                                      height: 100,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(12),
-                                          bottomLeft: Radius.circular(12),
+                                child: SizedBox(
+                                  height: 130, 
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 115,
+                                        height: 130, 
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(12),
+                                            bottomLeft: Radius.circular(12),
+                                          ),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(12),
+                                            bottomLeft: Radius.circular(12),
+                                          ),
+                                          child: Image.asset(
+                                            'assets/images/restaurant.jpg',
+                                            fit: BoxFit.cover,
+                                          ),
                                         ),
                                       ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(12),
-                                          bottomLeft: Radius.circular(12),
-                                        ),
-                                        child: Image.asset(
-                                          'assets/images/restaurant.jpg',
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(12.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              restaurant['nomrestaurant'] ?? 'Sans nom',
-                                              style: GoogleFonts.raleway(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            SizedBox(height: 6),
-                                            Text(
-                                              restaurantType,
-                                              style: GoogleFonts.raleway(
-                                                fontSize: 14,
-                                                color: Colors.black87,
-                                              ),
-                                            ),
-                                            if (cuisineNames.isNotEmpty) ...[
-                                              SizedBox(height: 6),
-                                              Wrap(
-                                                spacing: 4,
-                                                runSpacing: 4,
-                                                children: cuisineNames.map((name) => Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: goldColor.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                    border: Border.all(color: goldColor.withOpacity(0.3)),
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12.0),
+                                          child: SingleChildScrollView( // Ajout du scroll vertical pour le contenu
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  restaurant['nomrestaurant'] ?? 'Sans nom',
+                                                  style: GoogleFonts.raleway(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
                                                   ),
-                                                  child: Text(
-                                                    name,
-                                                    style: GoogleFonts.raleway(
-                                                      fontSize: 12,
-                                                      color: Colors.black87,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                SizedBox(height: 6),
+                                                Text(
+                                                  restaurantType,
+                                                  style: GoogleFonts.raleway(
+                                                    fontSize: 14,
+                                                    color: Colors.black87,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                if (cuisineNames.isNotEmpty) ...[
+                                                  SizedBox(height: 6),
+                                                  SingleChildScrollView(
+                                                    scrollDirection: Axis.horizontal,
+                                                    child: Wrap(
+                                                      spacing: 4,
+                                                      runSpacing: 4,
+                                                      children: cuisineNames.map((name) => Container(
+                                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: goldColor.withOpacity(0.1),
+                                                          borderRadius: BorderRadius.circular(8),
+                                                          border: Border.all(color: goldColor.withOpacity(0.3)),
+                                                        ),
+                                                        child: Text(
+                                                          name,
+                                                          style: GoogleFonts.raleway(
+                                                            fontSize: 12,
+                                                            color: Colors.black87,
+                                                          ),
+                                                        ),
+                                                      )).toList(),
                                                     ),
                                                   ),
-                                                )).toList(),
-                                              ),
-                                            ],
-                                            SizedBox(height: 6),
-                                            Wrap(
-                                              spacing: 4,
-                                              runSpacing: 4,
-                                              children: [
-                                                if (restaurant['vegetarienrestaurant'] == true)
-                                                  _buildInfoTag('Végétarien', Icons.eco, goldColor),
-                                                if (restaurant['veganrestaurant'] == true)
-                                                  _buildInfoTag('Vegan', Icons.spa, goldColor),
-                                                if (restaurant['livraisonrestaurant'] == true)
-                                                  _buildInfoTag('Livraison', Icons.delivery_dining, goldColor),
-                                                if (restaurant['emporterrestaurant'] == true)
-                                                  _buildInfoTag('À emporter', Icons.shopping_bag, goldColor),
-                                                if (restaurant['driverestaurant'] == true)
-                                                  _buildInfoTag('Drive', Icons.directions_car, goldColor),
-                                                if (restaurant['internetrestaurant'] == true)
-                                                  _buildInfoTag('Internet', Icons.wifi, goldColor),
-                                                if (restaurant['handicaprestaurant'] == true)
-                                                  _buildInfoTag('Handicap', Icons.accessible, goldColor),
-                                                if (restaurant['fumerrestaurant'] == true)
-                                                  _buildInfoTag('Fumeur', Icons.smoking_rooms, goldColor),
+                                                ],
+                                                SizedBox(height: 6),
+                                                SingleChildScrollView(
+                                                  scrollDirection: Axis.horizontal,
+                                                  child: Wrap(
+                                                    spacing: 4,
+                                                    runSpacing: 4,
+                                                    children: [
+                                                      if (restaurant['vegetarienrestaurant'] == true)
+                                                        _buildInfoTag('Végétarien', Icons.eco, goldColor),
+                                                      if (restaurant['veganrestaurant'] == true)
+                                                        _buildInfoTag('Vegan', Icons.spa, goldColor),
+                                                      if (restaurant['livraisonrestaurant'] == true)
+                                                        _buildInfoTag('Livraison', Icons.delivery_dining, goldColor),
+                                                      if (restaurant['emporterrestaurant'] == true)
+                                                        _buildInfoTag('À emporter', Icons.shopping_bag, goldColor),
+                                                      if (restaurant['driverestaurant'] == true)
+                                                        _buildInfoTag('Drive', Icons.directions_car, goldColor),
+                                                      if (restaurant['internetrestaurant'] == true)
+                                                        _buildInfoTag('Internet', Icons.wifi, goldColor),
+                                                      if (restaurant['handicaprestaurant'] == true)
+                                                        _buildInfoTag('Handicap', Icons.accessible, goldColor),
+                                                      if (restaurant['fumerrestaurant'] == true)
+                                                        _buildInfoTag('Fumeur', Icons.smoking_rooms, goldColor),
+                                                    ],
+                                                  ),
+                                                ),
                                               ],
                                             ),
-                                          ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             );

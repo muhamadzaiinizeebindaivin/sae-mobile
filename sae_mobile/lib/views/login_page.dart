@@ -38,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.user != null) {
         if (mounted) {
-          context.go('/home');
+          context.go('home_authentified_page.dart');
         }
       } else {
         setState(() {

@@ -307,7 +307,7 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                               ),
                               child: InkWell(
                                 onTap: () {
-                                  context.go('/restaurant-details', extra: {
+                                  context.push('/restaurant-details', extra: {
                                     'restaurantId': restaurant['idrestaurant']
                                   });
                                 },

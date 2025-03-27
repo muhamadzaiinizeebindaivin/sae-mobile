@@ -167,7 +167,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        context.go('/restaurants');
+        context.pop();
         return false; 
       },
       child: Scaffold(
@@ -185,7 +185,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
           centerTitle: true,
           leading: IconButton(
             icon: Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.go('/restaurants'), 
+            onPressed: () => context.pop(), 
           ),
         ),
         body: isLoading

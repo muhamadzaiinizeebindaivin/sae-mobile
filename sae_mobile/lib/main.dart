@@ -10,6 +10,7 @@ import 'views/restaurants_page.dart';
 import 'views/cuisines_page.dart';
 import 'views/cuisine_details_page.dart';
 import 'views/restaurant_details_page.dart';
+import 'views/home_authentified_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,6 +75,10 @@ class MyApp extends StatelessWidget {
               restaurantId: extras['restaurantId'],
             );
           },
+        ),
+        GoRoute(
+          path: '/home-authentified',
+          builder: (context, state) => HomeAuthentifiedPage(supabaseProvider: supabaseProvider), // Add this route
         ),
       ],
     );

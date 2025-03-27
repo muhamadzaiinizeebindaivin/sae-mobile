@@ -91,7 +91,7 @@ class _RegisterPageState extends State<RegisterPage> {
         });
 
         if (mounted) {
-          context.go('/login');
+          context.go('login_page.dart');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Compte créé avec succès ! Veuillez vous connecter.'),
