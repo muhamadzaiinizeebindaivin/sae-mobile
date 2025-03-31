@@ -38,16 +38,20 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.user != null) {
         if (mounted) {
-          context.go('home_authentified_page.dart');
+          context.go('/home-authentified');
         }
       } else {
         setState(() {
-          _errorMessage = 'Erreur lors de la connexion';
+          _errorMessage = 'Email ou mot de passe incorrect';
         });
       }
+    } on AuthException catch (e) {
+      setState(() {
+        _errorMessage = 'Erreur de connexion : ${e.message}';
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Erreur: ${e.toString()}';
+        _errorMessage = 'Une erreur est survenue : ${e.toString()}';
       });
     } finally {
       setState(() {
@@ -144,7 +148,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           validator: FormBuilderValidators.compose([
                             FormBuilderValidators.required(errorText: 'Veuillez entrer votre email'),
-                            FormBuilderValidators.email(errorText: 'Veuillez entrer un email valide'),
                           ]),
                         ),
                         const SizedBox(height: 16),
@@ -173,35 +176,10 @@ class _LoginPageState extends State<LoginPage> {
                               borderSide: BorderSide(color: goldColor, width: 2),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Veuillez entrer votre mot de passe';
-                            }
-
-                            List<String> errors = [];
-
-                            if (value.length < 8) {
-                              errors.add('8 caractères min.');
-                            }
-                            if (!RegExp(r'(?=.*[A-Z])').hasMatch(value)) {
-                              errors.add('1 majuscule');
-                            }
-                            if (!RegExp(r'(?=.*[a-z])').hasMatch(value)) {
-                              errors.add('1 minuscule');
-                            }
-                            if (!RegExp(r'(?=.*\d)').hasMatch(value)) {
-                              errors.add('1 chiffre');
-                            }
-                            if (!RegExp(r'(?=.*[!@#$%^&*(),.?":{}|<>])').hasMatch(value)) {
-                              errors.add('1 symbole');
-                            }
-
-                            if (errors.isNotEmpty) {
-                              return 'Le mot de passe doit contenir : ${errors.join(', ')}';
-                            }
-
-                            return null;
-                          },
+                          validator: FormBuilderValidators.compose([
+                            FormBuilderValidators.required(
+                                errorText: 'Veuillez entrer votre mot de passe'),
+                          ]),
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton(
