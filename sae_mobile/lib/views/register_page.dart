@@ -65,7 +65,6 @@ class _RegisterPageState extends State<RegisterPage> {
       final email = formValue['email'].trim();
       final password = formValue['password'];
 
-      // Vérification si l'email existe déjà dans la table utilisateur
       final emailCheck = await Supabase.instance.client
           .from('utilisateur')
           .select('emailutilisateur')
@@ -73,11 +72,15 @@ class _RegisterPageState extends State<RegisterPage> {
           .maybeSingle();
 
       if (emailCheck != null) {
-        throw Exception('Un compte avec cet email existe déjà !');
+        throw Exception('Cet email est déjà utilisé !');
       }
 
-      if (_selectedDate == null || _selectedSexe == null) {
-        throw Exception('Veuillez sélectionner une date de naissance et un sexe !');
+      if (_selectedDate == null) {
+        throw Exception('Veuillez sélectionner une date de naissance !');
+      }
+
+      if (_selectedSexe == null) {
+        throw Exception('Veuillez sélectionner un sexe !');
       }
 
       final authResponse = await Supabase.instance.client.auth.signUp(
@@ -121,17 +124,28 @@ class _RegisterPageState extends State<RegisterPage> {
           );
         }
       }
-    } catch (e) {
-      String errorMsg = 'Une erreur est survenue lors de l\'inscription.';
-      if (e is AuthException) {
-        errorMsg = 'Erreur d\'authentification : ${e.message}';
-      } else if (e is PostgrestException) {
-        errorMsg = 'Erreur lors de l\'insertion dans la base : ${e.message}';
-      } else {
-        errorMsg = e.toString();
-      }
+    } on AuthException catch (e) {
       setState(() {
-        _errorMessage = errorMsg;
+        switch (e.message) {
+          case 'Weak password':
+            _errorMessage = 'Le mot de passe est trop faible !';
+            break;
+          case 'User already registered':
+            _errorMessage = 'Cet email est déjà enregistré !';
+            break;
+          default:
+            _errorMessage = 'Erreur d\'inscription : ${e.message}';
+        }
+      });
+    } on PostgrestException catch (e) {
+      setState(() {
+        _errorMessage = 'Erreur de base de données : ${e.message}';
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().contains('existe déjà')
+            ? 'Cet email est déjà utilisé !'
+            : 'Une erreur est survenue lors de l\'inscription !';
       });
     } finally {
       setState(() {
@@ -205,9 +219,12 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.red.shade200),
                             ),
-                            child: Text(
-                              _errorMessage!,
-                              style: TextStyle(color: Colors.red.shade800),
+                            child: Center(
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(color: Colors.red.shade800),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ),
                         const SizedBox(height: 24),
@@ -227,9 +244,15 @@ class _RegisterPageState extends State<RegisterPage> {
                                     borderSide: BorderSide(color: goldColor, width: 2),
                                   ),
                                 ),
-                                validator: FormBuilderValidators.required(
-                                  errorText: 'Veuillez entrer votre nom',
-                                ),
+                                validator: FormBuilderValidators.compose([
+                                  FormBuilderValidators.required(
+                                    errorText: 'Veuillez entrer votre nom',
+                                  ),
+                                  FormBuilderValidators.match(
+                                    RegExp(r'^[a-zA-ZÀ-ÿ\s-]+$'),
+                                    errorText: 'Le nom ne doit contenir que des lettres',
+                                  ),
+                                ]),
                               ),
                             ),
                             const SizedBox(width: 16),
@@ -247,9 +270,15 @@ class _RegisterPageState extends State<RegisterPage> {
                                     borderSide: BorderSide(color: goldColor, width: 2),
                                   ),
                                 ),
-                                validator: FormBuilderValidators.required(
-                                  errorText: 'Veuillez entrer votre prénom',
-                                ),
+                                validator: FormBuilderValidators.compose([
+                                  FormBuilderValidators.required(
+                                    errorText: 'Veuillez entrer votre prénom',
+                                  ),
+                                  FormBuilderValidators.match(
+                                    RegExp(r'^[a-zA-ZÀ-ÿ\s-]+$'),
+                                    errorText: 'Le prénom ne doit contenir que des lettres',
+                                  ),
+                                ]),
                               ),
                             ),
                           ],
@@ -301,6 +330,9 @@ class _RegisterPageState extends State<RegisterPage> {
                               _selectedSexe = newValue;
                             });
                           },
+                          validator: FormBuilderValidators.required(
+                            errorText: 'Veuillez sélectionner votre sexe',
+                          ),
                         ),
                         const SizedBox(height: 16),
                         FormBuilderTextField(
@@ -342,8 +374,10 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                           ),
                           validator: FormBuilderValidators.compose([
-                            FormBuilderValidators.required(errorText: 'Veuillez entrer votre email'),
-                            FormBuilderValidators.email(errorText: 'Veuillez entrer un email valide'),
+                            FormBuilderValidators.required(
+                                errorText: 'Veuillez entrer votre email'),
+                            FormBuilderValidators.email(
+                                errorText: 'Veuillez entrer un email valide'),
                             FormBuilderValidators.match(
                               RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'),
                               errorText: 'L\'email doit être au format valide (ex: nom@domaine.com)',

@@ -40,18 +40,23 @@ class _LoginPageState extends State<LoginPage> {
         if (mounted) {
           context.go('/home-authentified');
         }
-      } else {
-        setState(() {
-          _errorMessage = 'Email ou mot de passe incorrect';
-        });
       }
     } on AuthException catch (e) {
       setState(() {
-        _errorMessage = 'Erreur de connexion : ${e.message}';
+        switch (e.message) {
+          case 'Invalid login credentials':
+            _errorMessage = 'Email ou mot de passe incorrect !';
+            break;
+          case 'Email not confirmed':
+            _errorMessage = 'Veuillez confirmer votre email avant de vous connecter !';
+            break;
+          default:
+            _errorMessage = 'Erreur de connexion : ${e.message}';
+        }
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Une erreur est survenue : ${e.toString()}';
+        _errorMessage = 'Une erreur inattendue est survenue';
       });
     } finally {
       setState(() {
@@ -125,9 +130,12 @@ class _LoginPageState extends State<LoginPage> {
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.red.shade200),
                             ),
-                            child: Text(
-                              _errorMessage!,
-                              style: TextStyle(color: Colors.red.shade800),
+                            child: Center(
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(color: Colors.red.shade800),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ),
                         const SizedBox(height: 24),
@@ -148,6 +156,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           validator: FormBuilderValidators.compose([
                             FormBuilderValidators.required(errorText: 'Veuillez entrer votre email'),
+                            FormBuilderValidators.email(errorText: 'Veuillez entrer un email valide'),
                           ]),
                         ),
                         const SizedBox(height: 16),
@@ -179,6 +188,8 @@ class _LoginPageState extends State<LoginPage> {
                           validator: FormBuilderValidators.compose([
                             FormBuilderValidators.required(
                                 errorText: 'Veuillez entrer votre mot de passe'),
+                            FormBuilderValidators.minLength(6,
+                                errorText: 'Le mot de passe doit contenir au moins 6 caractères'),
                           ]),
                         ),
                         const SizedBox(height: 24),

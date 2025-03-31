@@ -31,14 +31,14 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
     if (currentUser != null) {
       try {
         final response = await Supabase.instance.client
-            .from('UTILISATEUR')
-            .select('nomUtilisateur, prenomUtilisateur')
-            .eq('emailUtilisateur', currentUser.email!)
+            .from('utilisateur')
+            .select('nomutilisateur, prenomutilisateur')
+            .eq('emailutilisateur', currentUser.email!)
             .single();
 
         setState(() {
           _currentUser = currentUser;
-          _userName = '${response['prenomUtilisateur']} ${response['nomUtilisateur']}';
+          _userName = '${response['prenomutilisateur']} ${response['nomutilisateur']}';
         });
       } catch (e) {
         print('Erreur de récupération des détails utilisateur : $e');
@@ -166,7 +166,7 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
                             ),
                             SizedBox(height: 10),
                             Text(
-                              'Profil Utilisateur',
+                              'Profil utilisateur',
                               style: GoogleFonts.raleway(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
