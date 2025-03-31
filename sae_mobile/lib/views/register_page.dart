@@ -54,18 +54,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.saveAndValidate()) return;
-    if (_selectedDate == null) {
-      setState(() {
-        _errorMessage = 'Veuillez sélectionner votre date de naissance';
-      });
-      return;
-    }
-    if (_selectedSexe == null) {
-      setState(() {
-        _errorMessage = 'Veuillez sélectionner votre sexe';
-      });
-      return;
-    }
 
     setState(() {
       _isLoading = true;
@@ -74,39 +62,76 @@ class _RegisterPageState extends State<RegisterPage> {
 
     try {
       final formValue = _formKey.currentState!.value;
+      final email = formValue['email'].trim();
+      final password = formValue['password'];
+
+      // Vérification si l'email existe déjà dans la table utilisateur
+      final emailCheck = await Supabase.instance.client
+          .from('utilisateur')
+          .select('emailutilisateur')
+          .eq('emailutilisateur', email)
+          .maybeSingle();
+
+      if (emailCheck != null) {
+        throw Exception('Un compte avec cet email existe déjà !');
+      }
+
+      if (_selectedDate == null || _selectedSexe == null) {
+        throw Exception('Veuillez sélectionner une date de naissance et un sexe !');
+      }
+
       final authResponse = await Supabase.instance.client.auth.signUp(
-        email: formValue['email'].trim(),
-        password: formValue['password'],
+        email: email,
+        password: password,
+        data: {
+          'nomutilisateur': formValue['nom'].trim(),
+          'prenomutilisateur': formValue['prenom'].trim(),
+          'sexeutilisateur': _selectedSexe,
+          'ddnutilisateur': _selectedDate!.toIso8601String().split('T')[0],
+          'telephoneutilisateur': formValue['telephone'].trim(),
+        },
       );
 
       if (authResponse.user != null) {
-        await Supabase.instance.client.from('UTILISATEUR').insert({
-          'nomUtilisateur': formValue['nom'].trim(),
-          'prenomUtilisateur': formValue['prenom'].trim(),
-          'sexeUtilisateur': _selectedSexe,
-          'ddnUtilisateur': _selectedDate!.toIso8601String().split('T')[0],
-          'telephoneUtilisateur': formValue['telephone'].trim(),
-          'emailUtilisateur': formValue['email'].trim(),
-          'mdpUtilisateur': formValue['password'],
-        });
+        final userData = {
+          'nomutilisateur': formValue['nom'].trim(),
+          'prenomutilisateur': formValue['prenom'].trim(),
+          'sexeutilisateur': _selectedSexe,
+          'ddnutilisateur': _selectedDate!.toIso8601String().split('T')[0],
+          'telephoneutilisateur': formValue['telephone'].trim(),
+          'emailutilisateur': email,
+          'mdputilisateur': password,
+        };
+
+        await Supabase.instance.client.from('utilisateur').insert(userData);
 
         if (mounted) {
-          context.go('login_page.dart');
+          context.go('/login');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Compte créé avec succès ! Veuillez vous connecter.'),
+              content: Center(
+                child: Text(
+                  'Compte créé avec succès ! Veuillez vous connecter !',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
               backgroundColor: Colors.green,
             ),
           );
         }
-      } else {
-        setState(() {
-          _errorMessage = 'Erreur lors de la création du compte';
-        });
       }
     } catch (e) {
+      String errorMsg = 'Une erreur est survenue lors de l\'inscription.';
+      if (e is AuthException) {
+        errorMsg = 'Erreur d\'authentification : ${e.message}';
+      } else if (e is PostgrestException) {
+        errorMsg = 'Erreur lors de l\'insertion dans la base : ${e.message}';
+      } else {
+        errorMsg = e.toString();
+      }
       setState(() {
-        _errorMessage = 'Erreur: ${e.toString()}';
+        _errorMessage = errorMsg;
       });
     } finally {
       setState(() {
@@ -317,10 +342,12 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                           ),
                           validator: FormBuilderValidators.compose([
-                            FormBuilderValidators.required(
-                                errorText: 'Veuillez entrer votre email'),
-                            FormBuilderValidators.email(
-                                errorText: 'Veuillez entrer un email valide'),
+                            FormBuilderValidators.required(errorText: 'Veuillez entrer votre email'),
+                            FormBuilderValidators.email(errorText: 'Veuillez entrer un email valide'),
+                            FormBuilderValidators.match(
+                              RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'),
+                              errorText: 'L\'email doit être au format valide (ex: nom@domaine.com)',
+                            ),
                           ]),
                         ),
                         const SizedBox(height: 16),
