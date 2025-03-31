@@ -17,7 +17,6 @@ class HomeAuthentifiedPage extends StatefulWidget {
 }
 
 class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
-  User? _currentUser;
   String? _userName;
 
   @override
@@ -37,7 +36,6 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
             .single();
 
         setState(() {
-          _currentUser = currentUser;
           _userName = '${response['prenomutilisateur']} ${response['nomutilisateur']}';
         });
       } catch (e) {
@@ -141,49 +139,34 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
                             color: goldColor,
                             onTap: () => context.go('/cuisines'),
                           ),
+                          SizedBox(height: 20),
+                          _buildNavigationCard(
+                            context,
+                            title: 'Mes restaurants favoris',
+                            description: 'Voir vos restaurants préférés',
+                            icon: Icons.favorite,
+                            color: goldColor,
+                            onTap: () => context.go('/favorite-restaurants'),
+                          ),
+                          SizedBox(height: 20),
+                          _buildNavigationCard(
+                            context,
+                            title: 'Mes critiques',
+                            description: 'Consulter vos avis et critiques',
+                            icon: Icons.rate_review,
+                            color: goldColor,
+                            onTap: () => context.go('/reviews'),
+                          ),
+                          SizedBox(height: 20),
+                          _buildNavigationCard(
+                            context,
+                            title: 'Mon profil',
+                            description: 'Gérer vos informations personnelles',
+                            icon: Icons.person,
+                            color: goldColor,
+                            onTap: () => context.go('/profile'),
+                          ),
                         ],
-                      ),
-                    ),
-                    
-                    Spacer(),
-                    
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.person_outline,
-                              color: goldColor,
-                              size: 30,
-                            ),
-                            SizedBox(height: 10),
-                            Text(
-                              'Profil utilisateur',
-                              style: GoogleFonts.raleway(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: goldColor,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              _currentUser?.email ?? 'Chargement...',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.raleway(
-                                fontSize: 14,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
