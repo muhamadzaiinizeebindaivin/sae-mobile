@@ -3,23 +3,21 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
-import 'package:sae_mobile/views/favoris_page.dart';
 
-
-class RestaurantsPage extends StatefulWidget {
+class FavorisPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
-  RestaurantsPage({
+  FavorisPage({
     Key? key,
     required this.supabaseProvider,
   }) : super(key: key);
 
   @override
-  _RestaurantsPageState createState() => _RestaurantsPageState();
+  _FavorisPageState createState() => _FavorisPageState();
 }
 
-class _RestaurantsPageState extends State<RestaurantsPage> {
+class _FavorisPageState extends State<FavorisPage> {
   List<int> favoris = [];
-  List<Map<String, dynamic>> allRestaurants = [];
+  List<Map<String, dynamic>> favoriteRestaurants = [];
   List<Map<String, dynamic>> filteredRestaurants = [];
   List<Map<String, dynamic>> allCuisines = [];
   Map<int, List<int>> restaurantCuisines = {};
@@ -46,7 +44,6 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
   @override
   void initState() {
     super.initState();
-    _loadData();
     _loadFavoris();
     _searchController.addListener(() {
       _applyFilters();
@@ -59,26 +56,63 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadFavoris() async {
     setState(() {
       isLoading = true;
     });
     try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null || user.email == null) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+      
+      final userResponse = await Supabase.instance.client
+          .from('utilisateur')
+          .select('idutilisateur')
+          .eq('emailutilisateur', user.email!)
+          .single();
+      
+      int idUtilisateur = userResponse['idutilisateur'];
+      
+      final favResponse = await Supabase.instance.client
+          .from('aimer')
+          .select('idrestaurant')
+          .eq('idutilisateur', idUtilisateur);
+
+      List<int> favorisIds = favResponse.map<int>((fav) => fav['idrestaurant'] as int).toList();
+      
+      if (favorisIds.isEmpty) {
+        setState(() {
+          favoris = [];
+          favoriteRestaurants = [];
+          filteredRestaurants = [];
+          isLoading = false;
+        });
+        return;
+      }
+
       final restaurantResponse = await Supabase.instance.client
         .from('restaurant')
         .select('*')
+        .filter('idrestaurant', 'in', favorisIds)
         .order('nomrestaurant', ascending: true);
       List<Map<String, dynamic>> restaurantsList = List<Map<String, dynamic>>.from(restaurantResponse);
 
+      // Charger les cuisines
       final cuisineResponse = await Supabase.instance.client
         .from('cuisine')
         .select('*')
         .order('nomcuisine', ascending: true);
       List<Map<String, dynamic>> cuisinesList = List<Map<String, dynamic>>.from(cuisineResponse);
 
+      // Charger les relations restaurant-cuisine
       final servirResponse = await Supabase.instance.client
         .from('servir')
-        .select('idrestaurant, idcuisine');
+        .select('idrestaurant, idcuisine')
+        .filter('idrestaurant', 'in', favorisIds);
       List<Map<String, dynamic>> servirList = List<Map<String, dynamic>>.from(servirResponse);
 
       Map<int, Map<String, dynamic>> cuisinesMap = {};
@@ -105,7 +139,8 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
       }
 
       setState(() {
-        allRestaurants = restaurantsList;
+        favoris = favorisIds;
+        favoriteRestaurants = restaurantsList;
         allCuisines = cuisinesList;
         restaurantCuisines = restaurantCuisinesMap;
         cuisinesById = cuisinesMap;
@@ -114,7 +149,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
         isLoading = false;
       });
     } catch (e) {
-      print('Erreur lors du chargement des données: $e');
+      print('Erreur lors du chargement des favoris: $e');
       setState(() {
         isLoading = false;
       });
@@ -124,7 +159,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
   void _applyFilters() {
     setState(() {
       searchQuery = _searchController.text;
-      filteredRestaurants = allRestaurants.where((restaurant) {
+      filteredRestaurants = favoriteRestaurants.where((restaurant) {
         final name = restaurant['nomrestaurant']?.toString().toLowerCase() ?? '';
         final type = restaurant['typerestaurant']?.toString() ?? '';
         final restaurantId = restaurant['idrestaurant'];
@@ -232,6 +267,44 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
     if (cuisine == null) return null;
     return _formatCuisineName(cuisine['nomcuisine'] ?? 'Sans nom');
   }
+  
+  Future<void> _toggleFavori(int restaurantId) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null || user.email == null) return;
+      
+      final userResponse = await Supabase.instance.client
+          .from('utilisateur')
+          .select('idutilisateur')
+          .eq('emailutilisateur', user.email!)
+          .single();
+      
+      int idUtilisateur = userResponse['idutilisateur'];
+      
+      bool isFavorite = favoris.contains(restaurantId);
+      
+      if (isFavorite) {
+        await Supabase.instance.client
+            .from('aimer')
+            .delete()
+            .match({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
+            
+        setState(() {
+          favoris.remove(restaurantId);
+          favoriteRestaurants.removeWhere((r) => r['idrestaurant'] == restaurantId);
+          _applyFilters();
+        });
+      } else {
+        await Supabase.instance.client
+            .from('aimer')
+            .insert({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
+            
+        _loadFavoris();
+      }
+    } catch (e) {
+      print('Erreur lors de la modification des favoris: $e');
+    }
+  }
 
   Widget _buildFilterChip({
     required String label,
@@ -266,7 +339,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Restaurants',
+          'Mes Favoris',
           style: GoogleFonts.raleway(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -276,7 +349,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/home'),
         ),
       ),
       body: Column(
@@ -286,7 +359,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Rechercher un restaurant...',
+                hintText: 'Rechercher un restaurant favori...',
                 hintStyle: GoogleFonts.raleway(),
                 prefixIcon: Icon(Icons.search, color: goldColor),
                 border: OutlineInputBorder(
@@ -728,7 +801,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                 : filteredRestaurants.isEmpty
                     ? Center(
                         child: Text(
-                          'Aucun restaurant trouvé !',
+                          'Aucun restaurant favori trouvé !',
                           style: GoogleFonts.raleway(
                             fontSize: 18,
                             color: Colors.black87,
@@ -740,56 +813,55 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                         child: ListView.builder(
                           itemCount: paginatedData.length,
                           itemBuilder: (context, index) {
-                          final restaurant = paginatedData[index];
-                          final restaurantType = _formatRestaurantType(restaurant['typerestaurant']);
-                          final restaurantId = restaurant['idrestaurant'];
-                          final isFavori = favoris.contains(restaurantId);
+                            final restaurant = paginatedData[index];
+                            final restaurantId = restaurant['idrestaurant'];
+                            final restaurantType = _formatRestaurantType(restaurant['typerestaurant']);
 
-                          List<int> cuisineIds = restaurantCuisines[restaurantId] ?? [];
-                          List<String> cuisineNames = cuisineIds
-                              .map((id) => cuisinesById[id])
-                              .where((cuisine) => cuisine != null)
-                              .map((cuisine) => _formatCuisineName(cuisine!['nomcuisine'] ?? ''))
-                              .toList();
+                            List<int> cuisineIds = restaurantCuisines[restaurantId] ?? [];
+                            List<String> cuisineNames = cuisineIds
+                                .map((id) => cuisinesById[id])
+                                .where((cuisine) => cuisine != null)
+                                .map((cuisine) => _formatCuisineName(cuisine!['nomcuisine'] ?? ''))
+                                .toList();
 
-                          return Card(
-                            margin: EdgeInsets.only(bottom: 16.0),
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () {
-                                context.push('/restaurant-details', extra: {
-                                  'restaurantId': restaurantId
-                                });
-                              },
-                              child: SizedBox(
-                                height: 130, 
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 115,
-                                      height: 130, 
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(12),
-                                          bottomLeft: Radius.circular(12),
+                            return Card(
+                              margin: EdgeInsets.only(bottom: 16.0),
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  context.push('/restaurant-details', extra: {
+                                    'restaurantId': restaurantId
+                                  });
+                                },
+                                child: SizedBox(
+                                  height: 130, 
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 115,
+                                        height: 130, 
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(12),
+                                            bottomLeft: Radius.circular(12),
+                                          ),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(12),
+                                            bottomLeft: Radius.circular(12),
+                                          ),
+                                          child: Image.asset(
+                                            'assets/images/restaurant.jpg',
+                                            fit: BoxFit.cover,
+                                          ),
                                         ),
                                       ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(12),
-                                          bottomLeft: Radius.circular(12),
-                                        ),
-                                        child: Image.asset(
-                                          'assets/images/restaurant.jpg',
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
+                                      Expanded(
                                       child: Padding(
                                         padding: const EdgeInsets.all(12.0),
                                         child: Column(
@@ -812,10 +884,11 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                                                 ),
                                                 IconButton(
                                                   icon: Icon(
-                                                    isFavori ? Icons.favorite : Icons.favorite_border,
-                                                    color: isFavori ? Colors.red : Colors.grey,
-                                                  ),
-                                                  onPressed: () => _toggleFavori(restaurantId),
+                                                    favoriteRestaurants.any((r) => r['idrestaurant'] == restaurantId)
+                                                        ? Icons.favorite
+                                                        : Icons.favorite_border,
+                                                    ),
+                                                  onPressed: () => _toggleFavori,
                                                 ),
                                               ],
                                             ),
@@ -944,104 +1017,4 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
       ),
     );
   }
-  Future<void> _loadFavoris() async {
-  try {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null || user.email == null) return;
-    
-    final userResponse = await Supabase.instance.client
-        .from('utilisateur')
-        .select('idutilisateur')
-        .eq('emailutilisateur', user.email!)
-        .single();
-    
-    int idUtilisateur = userResponse['idutilisateur'];
-    
-    final response = await Supabase.instance.client
-        .from('aimer')
-        .select('idrestaurant')
-        .eq('idutilisateur', idUtilisateur);
-
-    setState(() {
-      favoris = response.map<int>((fav) => fav['idrestaurant'] as int).toList();
-    });
-    print('Favoris chargés: $favoris');
-  } catch (e) {
-    print('Erreur lors du chargement des favoris: $e');
-  }
-}
-
-Future<void> _toggleFavori(int restaurantId) async {
-  try {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null || user.email == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Vous devez être connecté pour ajouter des favoris'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    
-    final userResponse = await Supabase.instance.client
-        .from('utilisateur')
-        .select('idutilisateur')
-        .eq('emailutilisateur', user.email!)
-        .single();
-    
-    int idUtilisateur = userResponse['idutilisateur'];
-    
-    setState(() {
-      if (favoris.contains(restaurantId)) {
-        favoris.remove(restaurantId);
-      } else {
-        favoris.add(restaurantId);
-      }
-    });
-
-    if (!favoris.contains(restaurantId)) {
-      await Supabase.instance.client
-          .from('aimer')
-          .delete()
-          .match({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Restaurant retiré des favoris'),
-          backgroundColor: Colors.grey,
-        ),
-      );
-    } else {
-      await Supabase.instance.client.from('aimer').insert({
-        'idutilisateur': idUtilisateur,
-        'idrestaurant': restaurantId,
-        'dateaime': DateTime.now().toIso8601String().split('T')[0]
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Restaurant ajouté aux favoris'),
-          backgroundColor: Color(0xFFD4AF37),
-        ),
-      );
-    }
-  } catch (e) {
-    setState(() {
-      if (favoris.contains(restaurantId)) {
-        favoris.remove(restaurantId);
-      } else {
-        favoris.add(restaurantId);
-      }
-    });
-    
-    print('Erreur lors de la modification des favoris: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Erreur: Impossible de modifier les favoris'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-}
 }

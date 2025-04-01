@@ -11,6 +11,8 @@ import 'views/cuisines_page.dart';
 import 'views/cuisine_details_page.dart';
 import 'views/restaurant_details_page.dart';
 import 'views/home_authentified_page.dart';
+import 'package:sae_mobile/views/favoris_page.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +56,10 @@ class MyApp extends StatelessWidget {
         GoRoute(
           path: '/cuisines',
           builder: (context, state) => CuisinesPage(supabaseProvider: supabaseProvider),
+        ),
+        GoRoute(
+          path: '/favoris',
+          builder: (context, state) => FavorisPage(supabaseProvider: supabaseProvider),
         ),
         GoRoute(
           path: '/cuisine-details',
