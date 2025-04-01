@@ -4,91 +4,133 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
 
-class CuisinesPage extends StatefulWidget {
+class CuisinesFavorisPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
-  
-  const CuisinesPage({
+
+  const CuisinesFavorisPage({
     Key? key,
     required this.supabaseProvider,
   }) : super(key: key);
 
   @override
-  _CuisinesPageState createState() => _CuisinesPageState();
+  _CuisinesFavorisPageState createState() => _CuisinesFavorisPageState();
 }
 
-class _CuisinesPageState extends State<CuisinesPage> {
-  List<Map<String, dynamic>> allCuisines = [];
-  List<Map<String, dynamic>> filteredCuisines = [];
+class _CuisinesFavorisPageState extends State<CuisinesFavorisPage> {
+  List<Map<String, dynamic>> allFavoriteCuisines = [];
+  List<Map<String, dynamic>> filteredFavoriteCuisines = [];
   Map<int, int> restaurantCount = {};
   bool isLoading = true;
-  
+
   int currentPage = 0;
   final int itemsPerPage = 8;
   int totalPages = 0;
-  
+
   final TextEditingController searchController = TextEditingController();
-  
+
   @override
   void initState() {
     super.initState();
-    _loadCuisines();
-    
+    _loadFavoriteCuisines();
+
     searchController.addListener(() {
-      _filterCuisines();
+      _filterFavoriteCuisines();
     });
   }
-  
+
   @override
   void dispose() {
     searchController.dispose();
     super.dispose();
   }
-  
-  Future<void> _loadCuisines() async {
+
+  Future<void> _loadFavoriteCuisines() async {
     try {
-      final response = await Supabase.instance.client
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null || user.email == null) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Récupérer l'id de l'utilisateur connecté
+      final userResponse = await Supabase.instance.client
+          .from('utilisateur')
+          .select('idutilisateur')
+          .eq('emailutilisateur', user.email!)
+          .single();
+
+      int idutilisateur = userResponse['idutilisateur'];
+
+      // Récupérer les cuisines préférées de l'utilisateur
+      final prefererResponse = await Supabase.instance.client
+          .from('preferer')
+          .select('idcuisine')
+          .eq('idutilisateur', idutilisateur);
+
+      List<int> favoriteCuisineIds = prefererResponse
+          .map<int>((pref) => pref['idcuisine'] as int)
+          .toList();
+
+      if (favoriteCuisineIds.isEmpty) {
+        setState(() {
+          allFavoriteCuisines = [];
+          filteredFavoriteCuisines = [];
+          restaurantCount = {};
+          isLoading = false;
+          _updateTotalPages();
+        });
+        return;
+      }
+
+      // Récupérer les détails des cuisines favorites
+      final cuisineResponse = await Supabase.instance.client
           .from('cuisine')
           .select('*')
+          .inFilter('idcuisine', favoriteCuisineIds)
           .order('nomcuisine', ascending: true);
-      
-      List<Map<String, dynamic>> cuisinesList = List<Map<String, dynamic>>.from(response);
-      
+
+      List<Map<String, dynamic>> cuisinesList = List<Map<String, dynamic>>.from(cuisineResponse);
+
+      // Compter les restaurants associés à chaque cuisine
       final servirResponse = await Supabase.instance.client
           .from('servir')
-          .select('idcuisine, idrestaurant');
-      
+          .select('idcuisine, idrestaurant')
+          .inFilter('idcuisine', favoriteCuisineIds);
+
       List<Map<String, dynamic>> servirList = List<Map<String, dynamic>>.from(servirResponse);
-      
+
       Map<int, int> countMap = {};
       for (var servir in servirList) {
         int cuisineId = servir['idcuisine'];
         countMap[cuisineId] = (countMap[cuisineId] ?? 0) + 1;
       }
-      
+
       setState(() {
-        allCuisines = cuisinesList;
-        filteredCuisines = cuisinesList;
+        allFavoriteCuisines = cuisinesList;
+        filteredFavoriteCuisines = cuisinesList;
         restaurantCount = countMap;
         isLoading = false;
         _updateTotalPages();
       });
     } catch (e) {
-      print('Erreur lors du chargement des cuisines: $e');
+      print('Erreur lors du chargement des cuisines favorites: $e');
       setState(() {
         isLoading = false;
       });
     }
   }
 
-  void _filterCuisines() {
+  void _filterFavoriteCuisines() {
     final query = searchController.text.toLowerCase();
-    
+
     setState(() {
       if (query.isEmpty) {
-        filteredCuisines = allCuisines;
+        filteredFavoriteCuisines = allFavoriteCuisines;
       } else {
-        filteredCuisines = allCuisines
-            .where((cuisine) => 
+        filteredFavoriteCuisines = allFavoriteCuisines
+            .where((cuisine) =>
                 cuisine['nomcuisine'].toString().toLowerCase().startsWith(query))
             .toList();
       }
@@ -96,49 +138,68 @@ class _CuisinesPageState extends State<CuisinesPage> {
       _updateTotalPages();
     });
   }
-  
+
   void _updateTotalPages() {
-    totalPages = (filteredCuisines.length / itemsPerPage).ceil();
+    totalPages = (filteredFavoriteCuisines.length / itemsPerPage).ceil();
     if (totalPages == 0) totalPages = 1;
   }
-  
+
   List<Map<String, dynamic>> _getPaginatedCuisines() {
     final startIndex = currentPage * itemsPerPage;
-    final endIndex = (startIndex + itemsPerPage) > filteredCuisines.length
-        ? filteredCuisines.length
+    final endIndex = (startIndex + itemsPerPage) > filteredFavoriteCuisines.length
+        ? filteredFavoriteCuisines.length
         : startIndex + itemsPerPage;
-    
-    if (startIndex >= filteredCuisines.length) {
+
+    if (startIndex >= filteredFavoriteCuisines.length) {
       return [];
     }
-    
-    return filteredCuisines.sublist(startIndex, endIndex);
+
+    return filteredFavoriteCuisines.sublist(startIndex, endIndex);
   }
 
   String _formatCuisineName(String text) {
     if (text.isEmpty) return text;
-    
+
     String formattedText = text.replaceAll('_', ' ').replaceAll('-', ' ');
-    
     return formattedText[0].toUpperCase() + formattedText.substring(1).toLowerCase();
   }
 
   void _navigateToRestaurantsByCuisine(int cuisineId, String cuisineName) {
     context.go('/cuisine-details', extra: {
-      'cuisineId': cuisineId,
+      'idcuisine': cuisineId,
       'cuisineName': cuisineName,
     });
+  }
+
+  Future<void> _removeFavoriteCuisine(int cuisineId) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || user.email == null) return;
+
+    final userResponse = await Supabase.instance.client
+        .from('utilisateur')
+        .select('idutilisateur')
+        .eq('emailutilisateur', user.email!)
+        .single();
+
+    int idutilisateur = userResponse['idutilisateur'];
+
+    await Supabase.instance.client
+        .from('preferer')
+        .delete()
+        .match({'idutilisateur': idutilisateur, 'idcuisine': cuisineId});
+
+    _loadFavoriteCuisines();
   }
 
   @override
   Widget build(BuildContext context) {
     final goldColor = Color(0xFFD4AF37);
     final paginatedCuisines = _getPaginatedCuisines();
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Types de cuisine',
+          'Cuisines favorites',
           style: GoogleFonts.raleway(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -160,7 +221,7 @@ class _CuisinesPageState extends State<CuisinesPage> {
                   child: TextField(
                     controller: searchController,
                     decoration: InputDecoration(
-                      hintText: 'Rechercher un type de cuisine...',
+                      hintText: 'Rechercher une cuisine favorite...',
                       prefixIcon: Icon(Icons.search, color: goldColor),
                       suffixIcon: searchController.text.isNotEmpty
                           ? IconButton(
@@ -183,113 +244,113 @@ class _CuisinesPageState extends State<CuisinesPage> {
                     ),
                   ),
                 ),
-                
                 Expanded(
-                  child: filteredCuisines.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Aucun type de cuisine trouvé commençant par "${searchController.text}"',
-                          style: GoogleFonts.raleway(
-                            fontSize: 18,
-                            color: Colors.black87,
+                  child: filteredFavoriteCuisines.isEmpty
+                      ? Center(
+                          child: Text(
+                            allFavoriteCuisines.isEmpty
+                                ? 'Aucune cuisine favorite pour le moment !'
+                                : 'Aucune cuisine favorite trouvée commençant par "${searchController.text}"',
+                            style: GoogleFonts.raleway(
+                              fontSize: 18,
+                              color: Colors.black87,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: GridView.builder(
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 1.0,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                          ),
-                          itemCount: paginatedCuisines.length,
-                          itemBuilder: (context, index) {
-                            final cuisine = paginatedCuisines[index];
-                            final nbRestaurants = restaurantCount[cuisine['idcuisine']] ?? 0;
-                            final cuisineName = _formatCuisineName(cuisine['nomcuisine'] ?? 'Sans nom');
-                            
-                            return Card(
-                              elevation: 4,
-                              clipBehavior: Clip.antiAlias,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: InkWell(
-                                onTap: () {
-                                  _navigateToRestaurantsByCuisine(
-                                    cuisine['idcuisine'],
-                                    cuisineName
-                                  );
-                                },
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Expanded(
-                                      flex: 1,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: goldColor.withOpacity(0.1),
-                                        ),
-                                        child: Center(
-                                          child: Image.asset(
-                                            'assets/images/cuisine.webp',
-                                            fit: BoxFit.cover,
-                                            height: double.infinity,
-                                            width: double.infinity,
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: GridView.builder(
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 1.0,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
+                            itemCount: paginatedCuisines.length,
+                            itemBuilder: (context, index) {
+                              final cuisine = paginatedCuisines[index];
+                              final nbRestaurants = restaurantCount[cuisine['idcuisine']] ?? 0;
+                              final cuisineName = _formatCuisineName(cuisine['nomcuisine'] ?? 'Sans nom');
+
+                              return Card(
+                                elevation: 4,
+                                clipBehavior: Clip.antiAlias,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: InkWell(
+                                  onTap: () {
+                                    _navigateToRestaurantsByCuisine(
+                                      cuisine['idcuisine'],
+                                      cuisineName,
+                                    );
+                                  },
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Expanded(
+                                        flex: 1,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: goldColor.withOpacity(0.1),
+                                          ),
+                                          child: Center(
+                                            child: Image.asset(
+                                              'assets/images/cuisine.webp',
+                                              fit: BoxFit.cover,
+                                              height: double.infinity,
+                                              width: double.infinity,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    Expanded(
-                                      flex: 1,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              cuisineName,
-                                              style: GoogleFonts.raleway(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 1,
-                                            ),
-                                            SizedBox(height: 8),
-                                            Container(
-                                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: goldColor.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                '$nbRestaurants restaurant${nbRestaurants > 1 ? 's' : ''}',
+                                      Expanded(
+                                        flex: 1,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                cuisineName,
                                                 style: GoogleFonts.raleway(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: goldColor,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
+                                              SizedBox(height: 8),
+                                              Container(
+                                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: goldColor.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  '$nbRestaurants restaurant${nbRestaurants > 1 ? 's' : ''}',
+                                                  style: GoogleFonts.raleway(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: goldColor,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
-                      ),
                 ),
-                
-                if (!isLoading && filteredCuisines.isNotEmpty)
+                if (!isLoading && filteredFavoriteCuisines.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: Row(
@@ -333,4 +394,23 @@ class _CuisinesPageState extends State<CuisinesPage> {
             ),
     );
   }
+  Future<void> _removeFavoriteCuisine(int idcuisine) async {
+  final user = Supabase.instance.client.auth.currentUser;
+  if (user == null || user.email == null) return;
+
+  final userResponse = await Supabase.instance.client
+      .from('utilisateur')
+      .select('idutilisateur')
+      .eq('emailutilisateur', user.email!)
+      .single();
+
+  int idutilisateur = userResponse['idutilisateur'];
+
+  await Supabase.instance.client
+      .from('preferer')
+      .delete()
+      .match({'idutilisateur': idutilisateur, 'idcuisine': idcuisine});
+
+  _loadFavoriteCuisines();
+}
 }

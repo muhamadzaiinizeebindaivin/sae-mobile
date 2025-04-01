@@ -4,153 +4,140 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
 
-class FavorisCuisinePage extends StatefulWidget {
+class CuisiniersPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
-  
-  const FavorisCuisinePage({
+
+  const CuisiniersPage({
     Key? key,
     required this.supabaseProvider,
   }) : super(key: key);
 
   @override
-  _FavorisCuisinePageState createState() => _FavorisCuisinePageState();
+  _CuisiniersPageState createState() => _CuisiniersPageState();
 }
 
-class _FavorisCuisinePageState extends State<FavorisCuisinePagee> {
-  List<Map<String, dynamic>> allFavoris = [];
-  List<Map<String, dynamic>> filteredFavoris = [];
+class _CuisiniersPageState extends State<CuisiniersPage> {
+  List<Map<String, dynamic>> allCuisiniers = [];
+  List<Map<String, dynamic>> filteredCuisiniers = [];
+  Map<int, int> restaurantCount = {};
   bool isLoading = true;
-  
+
   int currentPage = 0;
   final int itemsPerPage = 8;
   int totalPages = 0;
-  
+
   final TextEditingController searchController = TextEditingController();
-  
+
   @override
   void initState() {
     super.initState();
-    _loadFavoris();
-    
+    _loadCuisiniers();
+
     searchController.addListener(() {
-      _filterFavoris();
+      _filterCuisiniers();
     });
   }
-  
+
   @override
   void dispose() {
     searchController.dispose();
     super.dispose();
   }
-  
-  Future<void> _loadFavoris() async {
+
+  Future<void> _loadCuisiniers() async {
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      
-      if (user == null) {
-        setState(() {
-          isLoading = false;
-        });
-        return;
-      }
-      
       final response = await Supabase.instance.client
-          .from('favoris')
-          .select('*, restaurant:idrestaurant(*)')
-          .eq('iduser', user.id);
-      
-      List<Map<String, dynamic>> favorisList = List<Map<String, dynamic>>.from(response);
-      
+          .from('cuisinier')
+          .select('*')
+          .order('nomcuisinier', ascending: true);
+
+      List<Map<String, dynamic>> cuisiniersList = List<Map<String, dynamic>>.from(response);
+
+      final travaillerResponse = await Supabase.instance.client
+          .from('travailler')
+          .select('idcuisinier, idrestaurant');
+
+      List<Map<String, dynamic>> travaillerList = List<Map<String, dynamic>>.from(travaillerResponse);
+
+      Map<int, int> countMap = {};
+      for (var travailler in travaillerList) {
+        int cuisinierId = travailler['idcuisinier'];
+        countMap[cuisinierId] = (countMap[cuisinierId] ?? 0) + 1;
+      }
+
       setState(() {
-        allFavoris = favorisList;
-        filteredFavoris = favorisList;
+        allCuisiniers = cuisiniersList;
+        filteredCuisiniers = cuisiniersList;
+        restaurantCount = countMap;
         isLoading = false;
         _updateTotalPages();
       });
     } catch (e) {
-      print('Erreur lors du chargement des favoris: $e');
+      print('Erreur lors du chargement des cuisiniers: $e');
       setState(() {
         isLoading = false;
       });
     }
   }
 
-  void _filterFavoris() {
+  void _filterCuisiniers() {
     final query = searchController.text.toLowerCase();
-    
+
     setState(() {
       if (query.isEmpty) {
-        filteredFavoris = allFavoris;
+        filteredCuisiniers = allCuisiniers;
       } else {
-        filteredFavoris = allFavoris
-            .where((favori) => 
-                favori['restaurant']['nomrestaurant'].toString().toLowerCase().startsWith(query))
+        filteredCuisiniers = allCuisiniers
+            .where((cuisinier) =>
+                cuisinier['nomcuisinier'].toString().toLowerCase().startsWith(query))
             .toList();
       }
       currentPage = 0;
       _updateTotalPages();
     });
   }
-  
+
   void _updateTotalPages() {
-    totalPages = (filteredFavoris.length / itemsPerPage).ceil();
+    totalPages = (filteredCuisiniers.length / itemsPerPage).ceil();
     if (totalPages == 0) totalPages = 1;
   }
-  
-  List<Map<String, dynamic>> _getPaginatedFavoris() {
+
+  List<Map<String, dynamic>> _getPaginatedCuisiniers() {
     final startIndex = currentPage * itemsPerPage;
-    final endIndex = (startIndex + itemsPerPage) > filteredFavoris.length
-        ? filteredFavoris.length
+    final endIndex = (startIndex + itemsPerPage) > filteredCuisiniers.length
+        ? filteredCuisiniers.length
         : startIndex + itemsPerPage;
-    
-    if (startIndex >= filteredFavoris.length) {
+
+    if (startIndex >= filteredCuisiniers.length) {
       return [];
     }
-    
-    return filteredFavoris.sublist(startIndex, endIndex);
+
+    return filteredCuisiniers.sublist(startIndex, endIndex);
   }
 
-  void _navigateToRestaurantDetails(int restaurantId) {
-    context.go('/restaurant-details', extra: {
-      'restaurantId': restaurantId,
-    });
+  String _formatCuisinierName(String text) {
+    if (text.isEmpty) return text;
+
+    String formattedText = text.replaceAll('_', ' ').replaceAll('-', ' ');
+    return formattedText[0].toUpperCase() + formattedText.substring(1).toLowerCase();
   }
-  
-  Future<void> _removeFavorite(int favorisId) async {
-    try {
-      await Supabase.instance.client
-          .from('favoris')
-          .delete()
-          .eq('idfavoris', favorisId);
-          
-      _loadFavoris();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Restaurant retiré des favoris'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      print('Erreur lors de la suppression du favori: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur lors de la suppression du favori'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+
+  void _navigateToRestaurantsByCuisinier(int cuisinierId, String cuisinierName) {
+    context.go('/cuisinier-details', extra: {
+      'cuisinierId': cuisinierId,
+      'cuisinierName': cuisinierName,
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final goldColor = Color(0xFFD4AF37);
-    final paginatedFavoris = _getPaginatedFavoris();
-    
+    final paginatedCuisiniers = _getPaginatedCuisiniers();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Mes Restaurants Favoris',
+          'Cuisiniers',
           style: GoogleFonts.raleway(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -172,7 +159,7 @@ class _FavorisCuisinePageState extends State<FavorisCuisinePagee> {
                   child: TextField(
                     controller: searchController,
                     decoration: InputDecoration(
-                      hintText: 'Rechercher un restaurant favori...',
+                      hintText: 'Rechercher un cuisinier...',
                       prefixIcon: Icon(Icons.search, color: goldColor),
                       suffixIcon: searchController.text.isNotEmpty
                           ? IconButton(
@@ -195,186 +182,112 @@ class _FavorisCuisinePageState extends State<FavorisCuisinePagee> {
                     ),
                   ),
                 ),
-                
                 Expanded(
-                  child: filteredFavoris.isEmpty
-                    ? Center(
-                        child: Text(
-                          searchController.text.isEmpty
-                            ? 'Vous n\'avez pas encore de restaurants favoris'
-                            : 'Aucun restaurant favori trouvé commençant par "${searchController.text}"',
-                          style: GoogleFonts.raleway(
-                            fontSize: 18,
-                            color: Colors.black87,
+                  child: filteredCuisiniers.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Aucun cuisinier trouvé commençant par "${searchController.text}"',
+                            style: GoogleFonts.raleway(
+                              fontSize: 18,
+                              color: Colors.black87,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: GridView.builder(
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 1.0,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                          ),
-                          itemCount: paginatedFavoris.length,
-                          itemBuilder: (context, index) {
-                            final favori = paginatedFavoris[index];
-                            final restaurant = favori['restaurant'];
-                            final restaurantName = restaurant['nomrestaurant'] ?? 'Sans nom';
-                            
-                            return Card(
-                              elevation: 4,
-                              clipBehavior: Clip.antiAlias,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Stack(
-                                children: [
-                                  InkWell(
-                                    onTap: () {
-                                      _navigateToRestaurantDetails(restaurant['idrestaurant']);
-                                    },
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        Expanded(
-                                          flex: 1,
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: goldColor.withOpacity(0.1),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: GridView.builder(
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 1.0,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
+                            itemCount: paginatedCuisiniers.length,
+                            itemBuilder: (context, index) {
+                              final cuisinier = paginatedCuisiniers[index];
+                              final nbRestaurants = restaurantCount[cuisinier['idcuisinier']] ?? 0;
+                              final cuisinierName = _formatCuisinierName(
+                                  cuisinier['nomcuisinier'] ?? 'Sans nom');
+
+                              return Card(
+                                elevation: 4,
+                                clipBehavior: Clip.antiAlias,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: InkWell(
+                                  onTap: () {
+                                    _navigateToRestaurantsByCuisinier(
+                                      cuisinier['idcuisinier'],
+                                      cuisinierName,
+                                    );
+                                  },
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Expanded(
+                                        flex: 1,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: goldColor.withOpacity(0.1),
+                                          ),
+                                          child: Center(
+                                            child: Image.asset(
+                                              'assets/images/cuisinier.jpg', // Image par défaut pour cuisinier
+                                              fit: BoxFit.cover,
+                                              height: double.infinity,
+                                              width: double.infinity,
                                             ),
-                                            child: Center(
-                                              child: Image.asset(
-                                                'assets/images/restaurant.webp',
-                                                fit: BoxFit.cover,
-                                                height: double.infinity,
-                                                width: double.infinity,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        flex: 1,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                cuisinierName,
+                                                style: GoogleFonts.raleway(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
                                               ),
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(8.0),
-                                            child: Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  restaurantName,
+                                              SizedBox(height: 8),
+                                              Container(
+                                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: goldColor.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  '$nbRestaurants restaurant${nbRestaurants > 1 ? 's' : ''}',
                                                   style: GoogleFonts.raleway(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: goldColor,
                                                   ),
-                                                  textAlign: TextAlign.center,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  maxLines: 1,
                                                 ),
-                                                SizedBox(height: 8),
-                                                Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: goldColor.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: restaurant['note'] != null
-                                                    ? Row(
-                                                        mainAxisSize: MainAxisSize.min,
-                                                        children: [
-                                                          Icon(
-                                                            Icons.star,
-                                                            color: goldColor,
-                                                            size: 16,
-                                                          ),
-                                                          SizedBox(width: 4),
-                                                          Text(
-                                                            '${restaurant['note'].toStringAsFixed(1)}',
-                                                            style: GoogleFonts.raleway(
-                                                              fontSize: 12,
-                                                              fontWeight: FontWeight.w500,
-                                                              color: goldColor,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      )
-                                                    : Text(
-                                                        'Non noté',
-                                                        style: GoogleFonts.raleway(
-                                                          fontSize: 12,
-                                                          fontWeight: FontWeight.w500,
-                                                          color: goldColor,
-                                                        ),
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.1),
-                                            spreadRadius: 1,
-                                            blurRadius: 3,
-                                          ),
-                                        ],
                                       ),
-                                      child: IconButton(
-                                        icon: Icon(
-                                          Icons.favorite,
-                                          color: Colors.red,
-                                        ),
-                                        onPressed: () {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title: Text('Retirer des favoris'),
-                                              content: Text('Voulez-vous retirer ce restaurant de vos favoris?'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(context),
-                                                  child: Text('Annuler'),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () {
-                                                    Navigator.pop(context);
-                                                    _removeFavorite(favori['idfavoris']);
-                                                  },
-                                                  child: Text('Confirmer'),
-                                                  style: TextButton.styleFrom(
-                                                    foregroundColor: Colors.red,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        },
-                                        iconSize: 20,
-                                        padding: EdgeInsets.all(8),
-                                      ),
-                                    ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            );
-                          },
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
                 ),
-                
-                if (!isLoading && filteredFavoris.isNotEmpty)
+                if (!isLoading && filteredCuisiniers.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: Row(
