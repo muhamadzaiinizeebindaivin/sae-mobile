@@ -71,16 +71,16 @@ class _FavorisPageState extends State<FavorisPage> {
       
       final userResponse = await Supabase.instance.client
           .from('utilisateur')
-          .select('idUtilisateur')
-          .eq('emailUtilisateur', user.email!)
+          .select('idutilisateur')
+          .eq('emailutilisateur', user.email!)
           .single();
       
-      int idUtilisateur = userResponse['idUtilisateur'];
+      int idUtilisateur = userResponse['idutilisateur'];
       
       final favResponse = await Supabase.instance.client
           .from('aimer')
           .select('idrestaurant')
-          .eq('idUtilisateur', idUtilisateur);
+          .eq('idutilisateur', idUtilisateur);
 
       List<int> favorisIds = favResponse.map<int>((fav) => fav['idrestaurant'] as int).toList();
       
@@ -297,7 +297,7 @@ class _FavorisPageState extends State<FavorisPage> {
       } else {
         await Supabase.instance.client
             .from('aimer')
-            .insert({'idUtilisateur': idUtilisateur, 'idRestaurant': restaurantId});
+            .insert({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
             
         _loadFavoris();
       }
