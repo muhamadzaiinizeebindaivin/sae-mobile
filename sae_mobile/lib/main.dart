@@ -56,6 +56,10 @@ class MyApp extends StatelessWidget {
           builder: (context, state) => CuisinesPage(supabaseProvider: supabaseProvider),
         ),
         GoRoute(
+          path: '/favoris',
+          builder: (context, state) => FavorisPage(supabaseProvider: supabaseProvider),
+        ),
+        GoRoute(
           path: '/cuisine-details',
           builder: (context, state) {
             final Map<String, dynamic> extras = state.extra as Map<String, dynamic>;
