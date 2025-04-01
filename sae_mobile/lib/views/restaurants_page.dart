@@ -743,7 +743,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                           final restaurant = paginatedData[index];
                           final restaurantType = _formatRestaurantType(restaurant['typerestaurant']);
                           final restaurantId = restaurant['idrestaurant'];
-                          final isFavori = favoris.contains(restaurantId); // Vérification favoris
+                          final isFavori = favoris.contains(restaurantId);
 
                           List<int> cuisineIds = restaurantCuisines[restaurantId] ?? [];
                           List<String> cuisineNames = cuisineIds
@@ -950,20 +950,20 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
     if (user == null || user.email == null) return;
     
     final userResponse = await Supabase.instance.client
-        .from('UTILISATEUR')
-        .select('idUtilisateur')
-        .eq('emailUtilisateur', user.email!)
+        .from('utilisateur')
+        .select('idutilisateur')
+        .eq('emailutilisateur', user.email!)
         .single();
     
-    int idUtilisateur = userResponse['idUtilisateur'];
+    int idUtilisateur = userResponse['idutilisateur'];
     
     final response = await Supabase.instance.client
-        .from('AIMER')
-        .select('idRestaurant')
-        .eq('idUtilisateur', idUtilisateur);
+        .from('aimer')
+        .select('idrestaurant')
+        .eq('idutilisateur', idUtilisateur);
 
     setState(() {
-      favoris = response.map<int>((fav) => fav['idRestaurant'] as int).toList();
+      favoris = response.map<int>((fav) => fav['idrestaurant'] as int).toList();
     });
     print('Favoris chargés: $favoris');
   } catch (e) {
@@ -985,12 +985,12 @@ Future<void> _toggleFavori(int restaurantId) async {
     }
     
     final userResponse = await Supabase.instance.client
-        .from('UTILISATEUR')
-        .select('idUtilisateur')
-        .eq('emailUtilisateur', user.email!)
+        .from('utilisateur')
+        .select('idutilisateur')
+        .eq('emailutilisateur', user.email!)
         .single();
     
-    int idUtilisateur = userResponse['idUtilisateur'];
+    int idUtilisateur = userResponse['idutilisateur'];
     
     setState(() {
       if (favoris.contains(restaurantId)) {
@@ -1002,9 +1002,9 @@ Future<void> _toggleFavori(int restaurantId) async {
 
     if (!favoris.contains(restaurantId)) {
       await Supabase.instance.client
-          .from('AIMER')
+          .from('aimer')
           .delete()
-          .match({'idUtilisateur': idUtilisateur, 'idRestaurant': restaurantId});
+          .match({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1013,10 +1013,10 @@ Future<void> _toggleFavori(int restaurantId) async {
         ),
       );
     } else {
-      await Supabase.instance.client.from('AIMER').insert({
-        'idUtilisateur': idUtilisateur,
-        'idRestaurant': restaurantId,
-        'dateAime': DateTime.now().toIso8601String().split('T')[0]
+      await Supabase.instance.client.from('aimer').insert({
+        'idutilisateur': idUtilisateur,
+        'idrestaurant': restaurantId,
+        'dateaime': DateTime.now().toIso8601String().split('T')[0]
       });
       
       ScaffoldMessenger.of(context).showSnackBar(

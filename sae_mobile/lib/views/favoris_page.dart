@@ -70,7 +70,7 @@ class _FavorisPageState extends State<FavorisPage> {
       }
       
       final userResponse = await Supabase.instance.client
-          .from('UTILISATEUR')
+          .from('utilisateur')
           .select('idUtilisateur')
           .eq('emailUtilisateur', user.email!)
           .single();
@@ -78,11 +78,11 @@ class _FavorisPageState extends State<FavorisPage> {
       int idUtilisateur = userResponse['idUtilisateur'];
       
       final favResponse = await Supabase.instance.client
-          .from('AIMER')
-          .select('idRestaurant')
+          .from('aimer')
+          .select('idrestaurant')
           .eq('idUtilisateur', idUtilisateur);
 
-      List<int> favorisIds = favResponse.map<int>((fav) => fav['idRestaurant'] as int).toList();
+      List<int> favorisIds = favResponse.map<int>((fav) => fav['idrestaurant'] as int).toList();
       
       if (favorisIds.isEmpty) {
         setState(() {
@@ -274,21 +274,20 @@ class _FavorisPageState extends State<FavorisPage> {
       if (user == null || user.email == null) return;
       
       final userResponse = await Supabase.instance.client
-          .from('UTILISATEUR')
-          .select('idUtilisateur')
-          .eq('emailUtilisateur', user.email!)
+          .from('utilisateur')
+          .select('idutilisateur')
+          .eq('emailutilisateur', user.email!)
           .single();
       
-      int idUtilisateur = userResponse['idUtilisateur'];
+      int idUtilisateur = userResponse['idutilisateur'];
       
       bool isFavorite = favoris.contains(restaurantId);
       
       if (isFavorite) {
-        // Supprimer des favoris
         await Supabase.instance.client
-            .from('AIMER')
+            .from('aimer')
             .delete()
-            .match({'idUtilisateur': idUtilisateur, 'idRestaurant': restaurantId});
+            .match({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
             
         setState(() {
           favoris.remove(restaurantId);
@@ -296,12 +295,10 @@ class _FavorisPageState extends State<FavorisPage> {
           _applyFilters();
         });
       } else {
-        // Ajouter aux favoris
         await Supabase.instance.client
-            .from('AIMER')
+            .from('aimer')
             .insert({'idUtilisateur': idUtilisateur, 'idRestaurant': restaurantId});
             
-        // Recharger les favoris pour mettre à jour la liste
         _loadFavoris();
       }
     } catch (e) {
