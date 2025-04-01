@@ -175,14 +175,23 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
                             color: goldColor,
                             onTap: () => context.push('/cuisines'),
                           ),
-                                                    SizedBox(height: 20),
+                          SizedBox(height: 20),
                           _buildNavigationCard(
                             context,
                             title: 'Favoris',
-                            description: 'Explorer mes favoris',
-                            icon: Icons.dinner_dining,
+                            description: 'Explorer mes restaurants favoris',
+                            icon: Icons.dinner_dining, // A changer !
                             color: goldColor,
                             onTap: () => context.go('/favoris'),
+                          ),
+                          SizedBox(height: 20),
+                          _buildNavigationCard(
+                            context,
+                            title: 'FavorisCuisine',
+                            description: 'Explorer mes cuisines favorite',
+                            icon: Icons.dinner_dining, // A changer !
+                            color: goldColor,
+                            onTap: () => context.go('/favorisCuisine'),
                           ),
                         ],
                       ),
