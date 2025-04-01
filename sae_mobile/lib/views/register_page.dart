@@ -10,7 +10,10 @@ import '../providers/supabase_provider.dart';
 class RegisterPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
 
-  const RegisterPage({Key? key, required this.supabaseProvider}) : super(key: key);
+  const RegisterPage({
+    Key? key, 
+    required this.supabaseProvider
+  }) : super(key: key);
 
   @override
   _RegisterPageState createState() => _RegisterPageState();
@@ -109,7 +112,7 @@ class _RegisterPageState extends State<RegisterPage> {
         await Supabase.instance.client.from('utilisateur').insert(userData);
 
         if (mounted) {
-          context.go('/login');
+          context.push('/login');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Center(
@@ -160,6 +163,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(
           'IUTables\'O',
           style: GoogleFonts.raleway(
@@ -182,7 +186,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   color: goldColor,
                   size: 28,
                 ),
-                onPressed: () => context.go('/'),
+                onPressed: () => context.pop(),
               ),
             ),
             Center(
@@ -487,7 +491,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               style: GoogleFonts.raleway(),
                             ),
                             TextButton(
-                              onPressed: () => context.go('/login'),
+                              onPressed: () => context.push('/login'),
                               child: Text(
                                 'Se connecter',
                                 style: GoogleFonts.raleway(

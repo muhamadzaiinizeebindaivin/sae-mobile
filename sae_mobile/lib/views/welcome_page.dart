@@ -3,7 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class WelcomePage extends StatelessWidget {
-  const WelcomePage({Key? key}) : super(key: key);
+  
+  const WelcomePage({
+    Key? key
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +98,7 @@ class WelcomePage extends StatelessWidget {
                     Center( 
                       child: ElevatedButton(
                         onPressed: () {
-                          context.go('/register');
+                          context.push('/register');
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: goldColor,
@@ -119,7 +122,7 @@ class WelcomePage extends StatelessWidget {
                     Center(  
                       child: OutlinedButton(
                         onPressed: () {
-                          context.go('/login');
+                          context.push('/login');
                         },
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 55),
@@ -193,7 +196,7 @@ class WelcomePage extends StatelessWidget {
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () {
-                              context.go('/home');
+                              context.push('/home');
                             },
                             child: Container(
                               padding: EdgeInsets.symmetric(vertical: 15, horizontal: 10),

@@ -272,7 +272,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/home'),
+          onPressed: () => context.pop(),
         ),
       ),
       body: Column(

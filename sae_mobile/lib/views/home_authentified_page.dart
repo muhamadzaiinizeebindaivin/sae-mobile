@@ -18,6 +18,7 @@ class HomeAuthentifiedPage extends StatefulWidget {
 
 class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
   String? _userName;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -60,6 +61,26 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
     }
   }
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        context.push('/favorite-restaurants');
+        break;
+      case 2:
+        context.push('/reviews');
+        break;
+      case 3:
+        context.push('/profile');
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final goldColor = Theme.of(context).primaryColor;
@@ -83,13 +104,15 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
         ],
       ),
       body: SafeArea(
-        child: Center(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Container(
-                constraints: BoxConstraints(maxWidth: 600),
-                margin: EdgeInsets.symmetric(horizontal: 16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Container(
+              constraints: BoxConstraints(maxWidth: 600),
+              margin: EdgeInsets.symmetric(horizontal: 16),
+              child: SingleChildScrollView(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start, 
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(top: 30),
@@ -118,7 +141,20 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
                     ),
                     
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          'assets/images/restaurant.jpg',
+                          width: double.infinity,
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -128,7 +164,7 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
                             description: 'Parcourir tous les restaurants d\'Orléans',
                             icon: Icons.restaurant,
                             color: goldColor,
-                            onTap: () => context.go('/restaurants'),
+                            onTap: () => context.push('/restaurants'),
                           ),
                           SizedBox(height: 20),
                           _buildNavigationCard(
@@ -137,44 +173,82 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
                             description: 'Explorer les différentes cuisines',
                             icon: Icons.dinner_dining,
                             color: goldColor,
-                            onTap: () => context.go('/cuisines'),
+                            onTap: () => context.push('/cuisines'),
                           ),
-                          SizedBox(height: 20),
-                          _buildNavigationCard(
-                            context,
-                            title: 'Mes restaurants favoris',
-                            description: 'Voir vos restaurants préférés',
-                            icon: Icons.favorite,
-                            color: goldColor,
-                            onTap: () => context.go('/favorite-restaurants'),
+                        ],
+                      ),
+                    ),
+                    
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20, bottom: 10),
+                      child: Text(
+                        'À la une',
+                        style: GoogleFonts.raleway(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: goldColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 30),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildFeaturedCard(
+                              context,
+                              title: 'Mieux notés',
+                              icon: Icons.star,
+                              color: goldColor,
+                              onTap: () => context.push('/top-rated'),
+                            ),
                           ),
-                          SizedBox(height: 20),
-                          _buildNavigationCard(
-                            context,
-                            title: 'Mes critiques',
-                            description: 'Consulter vos avis et critiques',
-                            icon: Icons.rate_review,
-                            color: goldColor,
-                            onTap: () => context.go('/reviews'),
-                          ),
-                          SizedBox(height: 20),
-                          _buildNavigationCard(
-                            context,
-                            title: 'Mon profil',
-                            description: 'Gérer vos informations personnelles',
-                            icon: Icons.person,
-                            color: goldColor,
-                            onTap: () => context.go('/profile'),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: _buildFeaturedCard(
+                              context,
+                              title: 'À proximité',
+                              icon: Icons.near_me,
+                              color: goldColor,
+                              onTap: () => context.push('/nearby'),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-              );
-            }
-          ),
+              ),
+            );
+          }
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Accueil',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite),
+            label: 'Favoris',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.rate_review),
+            label: 'Critiques',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: goldColor,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        onTap: _onItemTapped,
       ),
     );
   }
@@ -237,6 +311,55 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
               Icon(
                 Icons.chevron_right,
                 color: Colors.grey,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildFeaturedCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 30,
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                title,
+                style: GoogleFonts.raleway(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),

@@ -77,7 +77,7 @@ class HomePage extends StatelessWidget {
                             description: 'Parcourir tous les restaurants d\'Orléans',
                             icon: Icons.restaurant,
                             color: goldColor,
-                            onTap: () => context.go('/restaurants'),
+                            onTap: () => context.push('/restaurants'),
                           ),
                           SizedBox(height: 20),
                           _buildNavigationCard(
@@ -86,7 +86,7 @@ class HomePage extends StatelessWidget {
                             description: 'Explorer les différentes cuisines',
                             icon: Icons.dinner_dining,
                             color: goldColor,
-                            onTap: () => context.go('/cuisines'),
+                            onTap: () => context.push('/cuisines'),
                           ),
                         ],
                       ),
@@ -133,7 +133,7 @@ class HomePage extends StatelessWidget {
                             SizedBox(
                               width: 150,
                               child: OutlinedButton(
-                                onPressed: () => context.go('/login'),
+                                onPressed: () => context.push('/login'),
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(color: goldColor),
                                   shape: RoundedRectangleBorder(

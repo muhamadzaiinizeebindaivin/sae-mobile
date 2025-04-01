@@ -9,7 +9,10 @@ import '../providers/supabase_provider.dart';
 class LoginPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
 
-  const LoginPage({Key? key, required this.supabaseProvider}) : super(key: key);
+  const LoginPage({
+    Key? key, 
+    required this.supabaseProvider
+  }) : super(key: key);
 
   @override
   _LoginPageState createState() => _LoginPageState();
@@ -38,7 +41,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.user != null) {
         if (mounted) {
-          context.go('/home-authentified');
+          context.push('/home-authentified');
         }
       }
     } on AuthException catch (e) {
@@ -71,6 +74,7 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(
           'IUTables\'O',
           style: GoogleFonts.raleway(
@@ -93,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
                   color: goldColor,
                   size: 28,
                 ),
-                onPressed: () => context.go('/'),
+                onPressed: () => context.pop(),
               ),
             ),
             Center(
@@ -222,7 +226,7 @@ class _LoginPageState extends State<LoginPage> {
                               style: GoogleFonts.raleway(),
                             ),
                             TextButton(
-                              onPressed: () => context.go('/register'),
+                              onPressed: () => context.push('/register'),
                               child: Text(
                                 'S\'inscrire',
                                 style: GoogleFonts.raleway(
