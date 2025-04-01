@@ -144,7 +144,7 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
                                                     SizedBox(height: 20),
                           _buildNavigationCard(
                             context,
-                            title: 'Types de cuisine',
+                            title: 'Favoris',
                             description: 'Explorer mes favoris',
                             icon: Icons.dinner_dining,
                             color: goldColor,
