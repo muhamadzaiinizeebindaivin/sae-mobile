@@ -12,6 +12,8 @@ import 'views/cuisine_details_page.dart';
 import 'views/restaurant_details_page.dart';
 import 'views/home_authentified_page.dart';
 import 'package:sae_mobile/views/favoris_page.dart';
+import 'package:sae_mobile/views/favoris_cuisine.dart';
+
 
 
 void main() async {
@@ -60,6 +62,10 @@ class MyApp extends StatelessWidget {
         GoRoute(
           path: '/favoris',
           builder: (context, state) => FavorisPage(supabaseProvider: supabaseProvider),
+        ),
+        GoRoute(
+          path: '/favorisCuisine',
+          builder: (context, state) => FavorisCuisinesPage(supabaseProvider: supabaseProvider),
         ),
         GoRoute(
           path: '/cuisine-details',

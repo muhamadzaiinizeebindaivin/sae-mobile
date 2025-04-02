@@ -810,13 +810,6 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                                                     overflow: TextOverflow.ellipsis,
                                                   ),
                                                 ),
-                                                IconButton(
-                                                  icon: Icon(
-                                                    isFavori ? Icons.favorite : Icons.favorite_border,
-                                                    color: isFavori ? Colors.red : Colors.grey,
-                                                  ),
-                                                  onPressed: () => _toggleFavori(restaurantId),
-                                                ),
                                               ],
                                             ),
                                             SizedBox(height: 6),
