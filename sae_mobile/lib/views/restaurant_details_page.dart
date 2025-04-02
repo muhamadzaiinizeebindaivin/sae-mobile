@@ -384,17 +384,29 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showReviewDialog,
-        backgroundColor: goldColor,
-        icon: Icon(Icons.rate_review, color: Colors.white),
-        label: Text(
-          'Ajouter avis',
-          style: GoogleFonts.raleway(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+          onPressed: () {
+            final user = Supabase.instance.client.auth.currentUser;
+            if (user == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Vous devez être connecté pour laisser un avis'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+              return;
+            }
+            _showReviewDialog();
+          },
+          backgroundColor: goldColor,
+          icon: Icon(Icons.rate_review, color: Colors.white),
+          label: Text(
+            'Ajouter avis',
+            style: GoogleFonts.raleway(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-),
         body: isLoading
             ? Center(child: CircularProgressIndicator(color: goldColor))
             : restaurantDetails == null
