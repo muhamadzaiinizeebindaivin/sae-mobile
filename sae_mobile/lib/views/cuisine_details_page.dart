@@ -177,7 +177,7 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/cuisines'),
+          onPressed: () => context.pop(),
         ),
       ),
       body: isLoading

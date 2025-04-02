@@ -124,7 +124,7 @@ class _CuisinesPageState extends State<CuisinesPage> {
   }
 
   void _navigateToRestaurantsByCuisine(int cuisineId, String cuisineName) {
-    context.go('/cuisine-details', extra: {
+    context.push('/cuisine-details', extra: {
       'cuisineId': cuisineId,
       'cuisineName': cuisineName,
     });

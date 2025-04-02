@@ -11,7 +11,8 @@ import 'views/cuisines_page.dart';
 import 'views/cuisine_details_page.dart';
 import 'views/restaurant_details_page.dart';
 import 'views/home_authentified_page.dart';
-import 'package:sae_mobile/views/favoris_page.dart';
+import 'views/favoris_page.dart';
+import 'views/profile_page.dart';
 
 
 void main() async {
@@ -85,6 +86,10 @@ class MyApp extends StatelessWidget {
         GoRoute(
           path: '/home-authentified',
           builder: (context, state) => HomeAuthentifiedPage(supabaseProvider: supabaseProvider), // Add this route
+        ),
+        GoRoute(
+          path: '/profile',
+          builder: (context, state) => ProfilePage(supabaseProvider: supabaseProvider),
         ),
       ],
     );
