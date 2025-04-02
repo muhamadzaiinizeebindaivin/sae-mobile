@@ -23,8 +23,9 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
   Map<String, dynamic>? locationDetails;
   List<Map<String, dynamic>> cuisines = [];
   List<Map<String, dynamic>> openingHours = [];
+  List<Map<String, dynamic>> reviews = [];
   bool isLoading = true;
-  
+
   final Color goldColor = Color(0xFFD4AF37);
   final Color darkBackgroundColor = Color(0xFF1E1E1E);
   final Color softGrayColor = Color(0xFFF5F5F5);
@@ -36,53 +37,64 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
   }
 
   Future<void> _fetchRestaurantDetails() async {
+    setState(() {
+      isLoading = true;
+    });
+
     try {
       final restaurantResponse = await Supabase.instance.client
-        .from('restaurant')
-        .select('*, localisation(*)')
-        .eq('idrestaurant', widget.restaurantId)
-        .single();
+          .from('restaurant')
+          .select('*, localisation(*)')
+          .eq('idrestaurant', widget.restaurantId)
+          .maybeSingle();
+
+      if (restaurantResponse == null) {
+        throw Exception('Aucun restaurant trouvé pour l\'ID ${widget.restaurantId}');
+      }
 
       final cuisinesResponse = await Supabase.instance.client
-        .from('servir')
-        .select('cuisine(idcuisine, nomcuisine)')
-        .eq('idrestaurant', widget.restaurantId);
+          .from('servir')
+          .select('cuisine(idcuisine, nomcuisine)')
+          .eq('idrestaurant', widget.restaurantId);
 
       final openingResponse = await Supabase.instance.client
-        .from('proposer')
-        .select('ouverture(jourouverture), horaire')
-        .eq('idrestaurant', widget.restaurantId);
+          .from('proposer')
+          .select('ouverture(jourouverture), horaire')
+          .eq('idrestaurant', widget.restaurantId);
+
+      final reviewsResponse = await Supabase.instance.client
+          .from('critiquer')
+          .select('notecritique, commentairecritique, datecritique, utilisateur(nomutilisateur, prenomutilisateur)')
+          .eq('idrestaurant', widget.restaurantId)
+          .order('datecritique', ascending: false);
 
       setState(() {
         restaurantDetails = restaurantResponse;
         locationDetails = restaurantDetails?['localisation'];
-        cuisines = List<Map<String, dynamic>>.from(
-          cuisinesResponse.map((item) => item['cuisine'])
-        );
+        cuisines = List<Map<String, dynamic>>.from(cuisinesResponse.map((item) => item['cuisine']));
         openingHours = List<Map<String, dynamic>>.from(openingResponse);
+        reviews = List<Map<String, dynamic>>.from(reviewsResponse);
         isLoading = false;
       });
     } catch (e) {
       print('Erreur lors du chargement des détails du restaurant: $e');
       setState(() {
         isLoading = false;
+        restaurantDetails = null;
       });
     }
   }
 
   String _formatPhoneNumber(String? phoneNumber) {
     if (phoneNumber == null || phoneNumber.isEmpty) return 'Non spécifié';
-    
     String cleanNumber = phoneNumber.replaceAll(RegExp(r'\D'), '');
-    
     if (cleanNumber.length != 11) return phoneNumber;
-    
-    return '+${cleanNumber.substring(0,2)} '
-          '${cleanNumber.substring(2,3)} '
-          '${cleanNumber.substring(3,5)} '
-          '${cleanNumber.substring(5,7)} '
-          '${cleanNumber.substring(7,9)} '
-          '${cleanNumber.substring(9)}';
+    return '+${cleanNumber.substring(0, 2)} '
+        '${cleanNumber.substring(2, 3)} '
+        '${cleanNumber.substring(3, 5)} '
+        '${cleanNumber.substring(5, 7)} '
+        '${cleanNumber.substring(7, 9)} '
+        '${cleanNumber.substring(9)}';
   }
 
   String _formatRestaurantType(String? type) {
@@ -163,12 +175,189 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
     );
   }
 
+  Widget _buildReviewCard(Map<String, dynamic> review) {
+    final user = review['utilisateur'];
+    final String userName = '${user['prenomutilisateur']} ${user['nomutilisateur']}';
+    final int rating = review['notecritique'];
+    final String comment = review['commentairecritique'] ?? 'Aucun commentaire';
+    final String date = review['datecritique'].toString().split(' ')[0];
+
+    return Card(
+      margin: EdgeInsets.symmetric(vertical: 8.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  userName,
+                  style: GoogleFonts.raleway(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: darkBackgroundColor,
+                  ),
+                ),
+                Text(
+                  date,
+                  style: GoogleFonts.raleway(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: List.generate(5, (index) {
+                return Icon(
+                  index < rating ? Icons.star : Icons.star_border,
+                  color: goldColor,
+                  size: 20,
+                );
+              }),
+            ),
+            SizedBox(height: 8),
+            Text(
+              comment,
+              style: GoogleFonts.raleway(
+                fontSize: 14,
+                color: darkBackgroundColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Nouvelle méthode pour afficher le dialogue de soumission d'avis
+  void _showReviewDialog() {
+    final TextEditingController commentController = TextEditingController();
+    int rating = 0;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                'Laisser un avis',
+                style: GoogleFonts.raleway(
+                  fontWeight: FontWeight.bold,
+                  color: darkBackgroundColor,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Notez le restaurant',
+                      style: GoogleFonts.raleway(fontSize: 16),
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (index) {
+                        return IconButton(
+                          icon: Icon(
+                            index < rating ? Icons.star : Icons.star_border,
+                            color: goldColor,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              rating = index + 1;
+                            });
+                          },
+                        );
+                      }),
+                    ),
+                    SizedBox(height: 16),
+                    TextField(
+                      controller: commentController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Votre commentaire',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Annuler', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: goldColor,
+                  ),
+                  onPressed: () async {
+                    if (rating == 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Veuillez sélectionner une note')),
+                      );
+                      return;
+                    }
+                    if (commentController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Veuillez entrer un commentaire')),
+                      );
+                      return;
+                    }
+
+                    try {
+                      // Remplacez cet ID utilisateur par celui de l'utilisateur connecté
+                      // Si vous utilisez l'authentification Supabase, utilisez Supabase.instance.client.auth.currentUser?.id
+                      const int userId = 1; // À adapter selon votre système d'authentification
+
+                      await Supabase.instance.client.from('critiquer').insert({
+                        'idutilisateur': userId,
+                        'idrestaurant': widget.restaurantId,
+                        'notecritique': rating,
+                        'commentairecritique': commentController.text.trim(),
+                        'datecritique': DateTime.now().toIso8601String(),
+                      });
+
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Avis soumis avec succès !')),
+                      );
+                      _fetchRestaurantDetails(); // Rafraîchir les données pour afficher le nouvel avis
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erreur lors de la soumission : $e')),
+                      );
+                    }
+                  },
+                  child: Text(
+                    'Soumettre',
+                    style: GoogleFonts.raleway(color: Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
         context.pop();
-        return false; 
+        return false;
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -185,15 +374,27 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
           centerTitle: true,
           leading: IconButton(
             icon: Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.pop(), 
+            onPressed: () => context.pop(),
           ),
         ),
+        floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showReviewDialog,
+        backgroundColor: goldColor,
+        icon: Icon(Icons.rate_review, color: Colors.white),
+        label: Text(
+          'Ajouter avis',
+          style: GoogleFonts.raleway(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+),
         body: isLoading
             ? Center(child: CircularProgressIndicator(color: goldColor))
             : restaurantDetails == null
                 ? Center(
                     child: Text(
-                      'Restaurant non trouvé', 
+                      'Restaurant non trouvé',
                       style: GoogleFonts.raleway(fontSize: 18),
                     ),
                   )
@@ -254,79 +455,90 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
 
                           _buildSectionTitle('Informations Générales'),
                           _buildInfoRow('Nom', restaurantDetails?['nomrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Étoiles', 
-                            (restaurantDetails?['etoilerestaurant'] != null 
-                              ? '${restaurantDetails!['etoilerestaurant']}/5' 
-                              : 'Non spécifié')),
+                          _buildInfoRow('Étoiles',
+                              (restaurantDetails?['etoilerestaurant'] != null
+                                  ? '${restaurantDetails!['etoilerestaurant']}/5'
+                                  : 'Non spécifié')),
                           _buildInfoRow('Marque', restaurantDetails?['marquerestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('Gérant', restaurantDetails?['gerantrestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('SIRET', restaurantDetails?['siretrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Capacité', 
-                            (restaurantDetails?['capaciterestaurant'] != null 
-                              ? '${restaurantDetails!['capaciterestaurant']} personnes' 
-                              : 'Non spécifié')),
+                          _buildInfoRow('Capacité',
+                              (restaurantDetails?['capaciterestaurant'] != null
+                                  ? '${restaurantDetails!['capaciterestaurant']} personnes'
+                                  : 'Non spécifié')),
 
                           _buildSectionTitle('Cuisine'),
-                          _buildInfoRow('Établissement', 
-                            _formatRestaurantType(restaurantDetails?['typerestaurant'])),
-                          _buildInfoRow('Cuisine', 
-                            cuisines.isNotEmpty 
-                              ? cuisines.map((c) => _formatCuisineName(c['nomcuisine'])).join(', ') 
-                              : 'Non spécifié'),
-                          _buildInfoRow('Végétarien', 
-                            restaurantDetails?['vegetarienrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Vegan', 
-                            restaurantDetails?['veganrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Établissement', _formatRestaurantType(restaurantDetails?['typerestaurant'])),
+                          _buildInfoRow('Cuisine',
+                              cuisines.isNotEmpty
+                                  ? cuisines.map((c) => _formatCuisineName(c['nomcuisine'])).join(', ')
+                                  : 'Non spécifié'),
+                          _buildInfoRow('Végétarien',
+                              restaurantDetails?['vegetarienrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Vegan',
+                              restaurantDetails?['veganrestaurant'] == true ? 'Oui' : 'Non'),
 
                           _buildSectionTitle('Localisation'),
                           _buildInfoRow('Pays', locationDetails?['payslocalisation'] ?? 'Non spécifié'),
                           _buildInfoRow('Région', locationDetails?['regionlocalisation'] ?? 'Non spécifié'),
                           _buildInfoRow('Ville', locationDetails?['villelocalisation'] ?? 'Non spécifié'),
                           _buildInfoRow('Département', locationDetails?['departementlocalisation'] ?? 'Non spécifié'),
-                          _buildInfoRow('Adresse', 
-                            locationDetails?['adresselocalisation'] != null 
-                              ? '${locationDetails!['adresselocalisation']}, '
-                                '${locationDetails!['codevillelocalisation'] ?? ''} '
-                                '${locationDetails!['villelocalisation'] ?? ''}'
-                              : 'Non spécifié'),
-                          _buildInfoRow('Téléphone', 
-                            _formatPhoneNumber(restaurantDetails?['telephonerestaurant'])), 
-                          _buildInfoRow('Coordonnées', 
-                            locationDetails?['coordonneeslocalisation'] ?? 'Non spécifié'),
-                          _buildInfoRow('OpenStreetMap', 
-                            locationDetails?['cartelien'] ?? 'Non spécifié'),
+                          _buildInfoRow('Adresse',
+                              locationDetails?['adresselocalisation'] != null
+                                  ? '${locationDetails!['adresselocalisation']}, '
+                                      '${locationDetails!['codevillelocalisation'] ?? ''} '
+                                      '${locationDetails!['villelocalisation'] ?? ''}'
+                                  : 'Non spécifié'),
+                          _buildInfoRow('Téléphone', _formatPhoneNumber(restaurantDetails?['telephonerestaurant'])),
+                          _buildInfoRow('Coordonnées', locationDetails?['coordonneeslocalisation'] ?? 'Non spécifié'),
+                          _buildInfoRow('OpenStreetMap', locationDetails?['cartelien'] ?? 'Non spécifié'),
 
                           _buildSectionTitle('Services'),
-                          _buildInfoRow('Livraison', 
-                            restaurantDetails?['livraisonrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('À emporter', 
-                            restaurantDetails?['emporterrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Drive', 
-                            restaurantDetails?['driverestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Wi-Fi/Internet', 
-                            restaurantDetails?['internetrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Accès handicapé', 
-                            restaurantDetails?['handicaprestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Espace fumeur', 
-                            restaurantDetails?['fumerrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Livraison',
+                              restaurantDetails?['livraisonrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('À emporter',
+                              restaurantDetails?['emporterrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Drive',
+                              restaurantDetails?['driverestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Wi-Fi/Internet',
+                              restaurantDetails?['internetrestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Accès handicapé',
+                              restaurantDetails?['handicaprestaurant'] == true ? 'Oui' : 'Non'),
+                          _buildInfoRow('Espace fumeur',
+                              restaurantDetails?['fumerrestaurant'] == true ? 'Oui' : 'Non'),
 
                           _buildSectionTitle('Liens Externes'),
-                          _buildInfoRow('Site Web', 
-                            restaurantDetails?['sitewebrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Facebook', 
-                            restaurantDetails?['facebookrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Wikidata', 
-                            restaurantDetails?['wikidatalien'] ?? 'Non spécifié'),
+                          _buildInfoRow('Site Web', restaurantDetails?['sitewebrestaurant'] ?? 'Non spécifié'),
+                          _buildInfoRow('Facebook', restaurantDetails?['facebookrestaurant'] ?? 'Non spécifié'),
+                          _buildInfoRow('Wikidata', restaurantDetails?['wikidatalien'] ?? 'Non spécifié'),
 
                           _buildSectionTitle('Horaires d\'ouverture'),
                           openingHours.isNotEmpty
-                            ? Column(
-                                children: openingHours.map((opening) => _buildInfoRow(
-                                  _formatCuisineName(opening['ouverture']['jourouverture']),
-                                  opening['horaire'] ?? 'Non spécifié'
-                                )).toList(),
-                              )
-                            : _buildInfoRow('Horaires', 'Non spécifié'),
+                              ? Column(
+                                  children: openingHours
+                                      .map((opening) => _buildInfoRow(
+                                            _formatCuisineName(opening['ouverture']['jourouverture']),
+                                            opening['horaire'] ?? 'Non spécifié',
+                                          ))
+                                      .toList(),
+                                )
+                              : _buildInfoRow('Horaires', 'Non spécifié'),
+
+                          _buildSectionTitle('Critiques'),
+                          reviews.isNotEmpty
+                              ? Column(
+                                  children: reviews.map((review) => _buildReviewCard(review)).toList(),
+                                )
+                              : Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Text(
+                                    'Aucun avis pour le moment.',
+                                    style: GoogleFonts.raleway(
+                                      fontSize: 16,
+                                      color: darkBackgroundColor,
+                                    ),
+                                  ),
+                                ),
                         ],
                       ),
                     ),
