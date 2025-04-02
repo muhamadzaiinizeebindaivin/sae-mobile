@@ -87,6 +87,7 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
     
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false, 
         title: Text(
           'IUTables\'O',
           style: GoogleFonts.raleway(
@@ -106,128 +107,122 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return Container(
-              constraints: BoxConstraints(maxWidth: 600),
-              margin: EdgeInsets.symmetric(horizontal: 16),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start, 
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 30),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Bienvenue${_userName != null ? ', $_userName' : ''}',
-                            style: GoogleFonts.raleway(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: goldColor,
+            return Center(
+              child: Container(
+                constraints: BoxConstraints(maxWidth: 600),
+                margin: EdgeInsets.symmetric(horizontal: 16),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center, 
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 30),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Bienvenue${_userName != null ? ', $_userName' : ''}',
+                              style: GoogleFonts.raleway(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: goldColor,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            'Explorez les restaurants et cuisines d\'Orléans',
-                            style: GoogleFonts.raleway(
-                              fontSize: 16,
-                              color: Colors.black87,
+                            SizedBox(height: 10),
+                            Text(
+                              'Explorez les restaurants et cuisines d\'Orléans',
+                              style: GoogleFonts.raleway(
+                                fontSize: 16,
+                                color: Colors.black87,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.asset(
-                          'assets/images/restaurant.jpg',
-                          width: double.infinity,
-                          height: 200,
-                          fit: BoxFit.cover,
+                          ],
                         ),
                       ),
-                    ),
-                    
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildNavigationCard(
-                            context,
-                            title: 'Restaurants',
-                            description: 'Parcourir tous les restaurants d\'Orléans',
-                            icon: Icons.restaurant,
-                            color: goldColor,
-                            onTap: () => context.push('/restaurants'),
+                      
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.asset(
+                            'assets/images/restaurant.jpg',
+                            width: double.infinity,
+                            height: 200,
+                            fit: BoxFit.cover,
                           ),
-                          SizedBox(height: 20),
-                          _buildNavigationCard(
-                            context,
-                            title: 'Types de cuisine',
-                            description: 'Explorer les différentes cuisines',
-                            icon: Icons.dinner_dining,
-                            color: goldColor,
-                            onTap: () => context.push('/cuisines'),
-                          ),
-                                                    SizedBox(height: 20),
-                          _buildNavigationCard(
-                            context,
-                            title: 'Favoris',
-                            description: 'Explorer mes favoris',
-                            icon: Icons.dinner_dining,
-                            color: goldColor,
-                            onTap: () => context.go('/favoris'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20, bottom: 10),
-                      child: Text(
-                        'À la une',
-                        style: GoogleFonts.raleway(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: goldColor,
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 30),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _buildFeaturedCard(
+                      
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildNavigationCard(
                               context,
-                              title: 'Mieux notés',
-                              icon: Icons.star,
+                              title: 'Restaurants',
+                              description: 'Parcourir tous les restaurants d\'Orléans',
+                              icon: Icons.restaurant,
                               color: goldColor,
-                              onTap: () => context.push('/top-rated'),
+                              onTap: () => context.push('/restaurants'),
                             ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: _buildFeaturedCard(
+                            SizedBox(height: 20),
+                            _buildNavigationCard(
                               context,
-                              title: 'À proximité',
-                              icon: Icons.near_me,
+                              title: 'Types de cuisine',
+                              description: 'Explorer les différentes cuisines',
+                              icon: Icons.dinner_dining,
                               color: goldColor,
-                              onTap: () => context.push('/nearby'),
+                              onTap: () => context.push('/cuisines'),
                             ),
-                          ),
-                        ],
+                            SizedBox(height: 20),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                      
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20, bottom: 10),
+                        child: Text(
+                          'À la une',
+                          style: GoogleFonts.raleway(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: goldColor,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 30),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildFeaturedCard(
+                                context,
+                                title: 'Mieux notés',
+                                icon: Icons.star,
+                                color: goldColor,
+                                onTap: () => context.push('/top-rated'),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: _buildFeaturedCard(
+                                context,
+                                title: 'À proximité',
+                                icon: Icons.near_me,
+                                color: goldColor,
+                                onTap: () => context.push('/nearby'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
