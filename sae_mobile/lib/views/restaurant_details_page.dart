@@ -181,6 +181,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
     final int rating = review['notecritique'];
     final String comment = review['commentairecritique'] ?? 'Aucun commentaire';
     final String date = review['datecritique'].toString().split(' ')[0];
+    // final int idutilisateur = '${user['idutilisateur']}';
 
     return Card(
       margin: EdgeInsets.symmetric(vertical: 8.0),
@@ -315,7 +316,15 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                     }
 
                     try {
-                      const int userId = 1; 
+                      final user = Supabase.instance.client.auth.currentUser;
+                      final UserResponse = await Supabase.instance.client
+                        .from('utilisateur')
+                        .select('idutilisateur')
+                        .eq('emailutilisateur', user?.email ?? '')
+                        .single();
+
+                      int userId = UserResponse['idutilisateur'];
+
 
                       await Supabase.instance.client.from('critiquer').insert({
                         'idutilisateur': userId,
@@ -375,17 +384,29 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showReviewDialog,
-        backgroundColor: goldColor,
-        icon: Icon(Icons.rate_review, color: Colors.white),
-        label: Text(
-          'Ajouter avis',
-          style: GoogleFonts.raleway(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+          onPressed: () {
+            final user = Supabase.instance.client.auth.currentUser;
+            if (user == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Vous devez être connecté pour laisser un avis'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+              return;
+            }
+            _showReviewDialog();
+          },
+          backgroundColor: goldColor,
+          icon: Icon(Icons.rate_review, color: Colors.white),
+          label: Text(
+            'Ajouter avis',
+            style: GoogleFonts.raleway(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-),
         body: isLoading
             ? Center(child: CircularProgressIndicator(color: goldColor))
             : restaurantDetails == null
