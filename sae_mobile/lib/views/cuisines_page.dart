@@ -211,7 +211,7 @@ class _CuisinesPageState extends State<CuisinesPage> {
                             final cuisine = paginatedCuisines[index];
                             final nbRestaurants = restaurantCount[cuisine['idcuisine']] ?? 0;
                             final cuisineName = _formatCuisineName(cuisine['nomcuisine'] ?? 'Sans nom');
-                            final cuisineId = cuisine['idrestaurant'];
+                            final cuisineId = cuisine['idcuisine'];
                             final isFavori = favoris.contains(cuisineId);
 
                             
@@ -376,7 +376,7 @@ class _CuisinesPageState extends State<CuisinesPage> {
 
     if (!favoris.contains(cuisineId)) {
       await Supabase.instance.client
-          .from('aimer')
+          .from('preferer')
           .delete()
           .match({'idutilisateur': idUtilisateur, 'idcuisine': cuisineId});
       
@@ -388,7 +388,7 @@ class _CuisinesPageState extends State<CuisinesPage> {
       );
     } else {
       await Supabase.instance.client.from('preferer').insert({
-        'datePrefere': DateTime.now().toIso8601String().split('T')[0],
+        'dateprefere': DateTime.now().toIso8601String().split('T')[0],
         'idutilisateur': idUtilisateur,
         'idcuisine': cuisineId,
       });
