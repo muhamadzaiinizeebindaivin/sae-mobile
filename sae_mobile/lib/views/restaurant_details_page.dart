@@ -235,7 +235,6 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
     );
   }
 
-  // Nouvelle méthode pour afficher le dialogue de soumission d'avis
   void _showReviewDialog() {
     final TextEditingController commentController = TextEditingController();
     int rating = 0;
@@ -316,9 +315,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                     }
 
                     try {
-                      // Remplacez cet ID utilisateur par celui de l'utilisateur connecté
-                      // Si vous utilisez l'authentification Supabase, utilisez Supabase.instance.client.auth.currentUser?.id
-                      const int userId = 1; // À adapter selon votre système d'authentification
+                      const int userId = 1; 
 
                       await Supabase.instance.client.from('critiquer').insert({
                         'idutilisateur': userId,
@@ -332,7 +329,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Avis soumis avec succès !')),
                       );
-                      _fetchRestaurantDetails(); // Rafraîchir les données pour afficher le nouvel avis
+                      _fetchRestaurantDetails(); 
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Erreur lors de la soumission : $e')),
