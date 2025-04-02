@@ -181,6 +181,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
     final int rating = review['notecritique'];
     final String comment = review['commentairecritique'] ?? 'Aucun commentaire';
     final String date = review['datecritique'].toString().split(' ')[0];
+    // final int idutilisateur = '${user['idutilisateur']}';
 
     return Card(
       margin: EdgeInsets.symmetric(vertical: 8.0),
@@ -316,9 +317,14 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                     }
 
                     try {
-                      // Remplacez cet ID utilisateur par celui de l'utilisateur connecté
-                      // Si vous utilisez l'authentification Supabase, utilisez Supabase.instance.client.auth.currentUser?.id
-                      const int userId = 1; // À adapter selon votre système d'authentification
+                      final user = Supabase.instance.client.auth.currentUser;
+                      final UserResponse = await Supabase.instance.client
+                        .from('utilisateur')
+                        .select('idutilisateur')
+                        .eq('emailutilisateur', user?.email ?? '')
+                        .single();
+
+                      int userId = UserResponse['idutilisateur'];
 
                       await Supabase.instance.client.from('critiquer').insert({
                         'idutilisateur': userId,
