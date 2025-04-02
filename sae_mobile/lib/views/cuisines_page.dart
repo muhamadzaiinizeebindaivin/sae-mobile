@@ -17,6 +17,7 @@ class CuisinesPage extends StatefulWidget {
 }
 
 class _CuisinesPageState extends State<CuisinesPage> {
+  List<int> favoris = [];
   List<Map<String, dynamic>> allCuisines = [];
   List<Map<String, dynamic>> filteredCuisines = [];
   Map<int, int> restaurantCount = {};
@@ -210,6 +211,9 @@ class _CuisinesPageState extends State<CuisinesPage> {
                             final cuisine = paginatedCuisines[index];
                             final nbRestaurants = restaurantCount[cuisine['idcuisine']] ?? 0;
                             final cuisineName = _formatCuisineName(cuisine['nomcuisine'] ?? 'Sans nom');
+                            final cuisineId = cuisine['idcuisine'];
+                            final isFavori = favoris.contains(cuisineId);
+
                             
                             return Card(
                               elevation: 4,
@@ -276,6 +280,13 @@ class _CuisinesPageState extends State<CuisinesPage> {
                                                 ),
                                               ),
                                             ),
+                                            IconButton(
+                                                  icon: Icon(
+                                                    isFavori ? Icons.favorite : Icons.favorite_border,
+                                                    color: isFavori ? Colors.red : Colors.grey,
+                                                  ),
+                                                  onPressed: () => _toggleFavori(cuisineId),
+                                                ),
                                           ],
                                         ),
                                       ),
@@ -333,4 +344,78 @@ class _CuisinesPageState extends State<CuisinesPage> {
             ),
     );
   }
+
+  Future<void> _toggleFavori(int cuisineId) async {
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || user.email == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Vous devez être connecté pour ajouter des favoris'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    final userResponse = await Supabase.instance.client
+        .from('utilisateur')
+        .select('idutilisateur')
+        .eq('emailutilisateur', user.email!)
+        .single();
+    
+    int idUtilisateur = userResponse['idutilisateur'];
+    
+    setState(() {
+      if (favoris.contains(cuisineId)) {
+        favoris.remove(cuisineId);
+      } else {
+        favoris.add(cuisineId);
+      }
+    });
+
+    if (!favoris.contains(cuisineId)) {
+      await Supabase.instance.client
+          .from('preferer')
+          .delete()
+          .match({'idutilisateur': idUtilisateur, 'idcuisine': cuisineId});
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Restaurant retiré des favoris'),
+          backgroundColor: Colors.grey,
+        ),
+      );
+    } else {
+      await Supabase.instance.client.from('preferer').insert({
+        'dateprefere': DateTime.now().toIso8601String().split('T')[0],
+        'idutilisateur': idUtilisateur,
+        'idcuisine': cuisineId,
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Restaurant ajouté aux favoris'),
+          backgroundColor: Color(0xFFD4AF37),
+        ),
+      );
+    }
+  } catch (e) {
+    setState(() {
+      if (favoris.contains(cuisineId)) {
+        favoris.remove(cuisineId);
+      } else {
+        favoris.add(cuisineId);
+      }
+    });
+    
+    print('Erreur lors de la modification des favoris: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Erreur: Impossible de modifier les favoris'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
 }
