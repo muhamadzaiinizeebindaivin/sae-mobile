@@ -25,8 +25,6 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
   List<Map<String, dynamic>> openingHours = [];
   List<Map<String, dynamic>> reviews = [];
   bool isLoading = true;
-  bool hasUserReviewed = false;
-  Map<String, dynamic>? userReview;
 
   final Color goldColor = Color(0xFFD4AF37);
   final Color darkBackgroundColor = Color(0xFF1E1E1E);
@@ -66,37 +64,17 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
 
       final reviewsResponse = await Supabase.instance.client
           .from('critiquer')
-          .select('notecritique, commentairecritique, datecritique, utilisateur(nomutilisateur, prenomutilisateur, idutilisateur)')
+          .select('notecritique, commentairecritique, datecritique, utilisateur(nomutilisateur, prenomutilisateur)')
           .eq('idrestaurant', widget.restaurantId)
           .order('datecritique', ascending: false);
 
-      final user = Supabase.instance.client.auth.currentUser;
-      int? userId;
-      if (user != null) {
-        final userResponse = await Supabase.instance.client
-            .from('utilisateur')
-            .select('idutilisateur')
-            .eq('emailutilisateur', user.email!)
-            .single();
-        userId = userResponse['idutilisateur'];
-      }
-
-      final reviewsList = List<Map<String, dynamic>>.from(reviewsResponse);
       setState(() {
         restaurantDetails = restaurantResponse;
         locationDetails = restaurantDetails?['localisation'];
         cuisines = List<Map<String, dynamic>>.from(cuisinesResponse.map((item) => item['cuisine']));
         openingHours = List<Map<String, dynamic>>.from(openingResponse);
-        reviews = reviewsList;
+        reviews = List<Map<String, dynamic>>.from(reviewsResponse);
         isLoading = false;
-
-        if (userId != null) {
-          userReview = reviewsList.firstWhere(
-            (review) => review['utilisateur']['idutilisateur'] == userId,
-            orElse: () => <String, dynamic>{},
-          );
-          hasUserReviewed = userReview!.isNotEmpty;
-        }
       });
     } catch (e) {
       print('Erreur lors du chargement des détails du restaurant: $e');
@@ -203,6 +181,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
     final int rating = review['notecritique'];
     final String comment = review['commentairecritique'] ?? 'Aucun commentaire';
     final String date = review['datecritique'].toString().split(' ')[0];
+    // final int idutilisateur = '${user['idutilisateur']}';
 
     return Card(
       margin: EdgeInsets.symmetric(vertical: 8.0),
@@ -258,10 +237,8 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
   }
 
   void _showReviewDialog() {
-    final TextEditingController commentController = TextEditingController(
-      text: hasUserReviewed ? userReview!['commentairecritique'] : '',
-    );
-    int rating = hasUserReviewed ? userReview!['notecritique'] : 0;
+    final TextEditingController commentController = TextEditingController();
+    int rating = 0;
 
     showDialog(
       context: context,
@@ -270,7 +247,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(
-                hasUserReviewed ? 'Modifier avis' : 'Laisser un avis',
+                'Laisser un avis',
                 style: GoogleFonts.raleway(
                   fontWeight: FontWeight.bold,
                   color: darkBackgroundColor,
@@ -320,50 +297,6 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                   onPressed: () => Navigator.pop(context),
                   child: Text('Annuler', style: TextStyle(color: Colors.grey)),
                 ),
-                if (hasUserReviewed)
-                  TextButton(
-                    onPressed: () async {
-                      try {
-                        final user = Supabase.instance.client.auth.currentUser;
-                        if (user == null) throw Exception('Utilisateur non connecté');
-
-                        final userResponse = await Supabase.instance.client
-                            .from('utilisateur')
-                            .select('idutilisateur')
-                            .eq('emailutilisateur', user.email!)
-                            .single();
-
-                        int userId = userResponse['idutilisateur'];
-
-                        await Supabase.instance.client
-                            .from('critiquer')
-                            .delete()
-                            .eq('idutilisateur', userId)
-                            .eq('idrestaurant', widget.restaurantId);
-
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Avis supprimé avec succès !'),
-                            duration: Duration(seconds: 1),
-                            ),
-                        );
-                        await _fetchRestaurantDetails();
-                      } catch (e) {
-                        print('Erreur lors de la suppression : $e');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Erreur lors de la suppression : $e'), 
-                            duration: Duration(seconds: 1),
-                            ),
-                        );
-                      }
-                    },
-                    child: Text(
-                      'Supprimer',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: goldColor,
@@ -371,84 +304,49 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                   onPressed: () async {
                     if (rating == 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Veuillez sélectionner une note'),
-                          duration: Duration(seconds: 1),
-                          ),
+                        SnackBar(content: Text('Veuillez sélectionner une note')),
                       );
                       return;
                     }
                     if (commentController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Veuillez entrer un commentaire'),
-                          duration: Duration(seconds: 1),
-                        ),
-                        
+                        SnackBar(content: Text('Veuillez entrer un commentaire')),
                       );
                       return;
                     }
 
                     try {
                       final user = Supabase.instance.client.auth.currentUser;
-                      if (user == null) throw Exception('Utilisateur non connecté');
+                      final UserResponse = await Supabase.instance.client
+                        .from('utilisateur')
+                        .select('idutilisateur')
+                        .eq('emailutilisateur', user?.email ?? '')
+                        .single();
 
-                      final userResponse = await Supabase.instance.client
-                          .from('utilisateur')
-                          .select('idutilisateur')
-                          .eq('emailutilisateur', user.email!)
-                          .single();
+                      int userId = UserResponse['idutilisateur'];
 
-                      int userId = userResponse['idutilisateur'];
 
-                      if (hasUserReviewed) {
-                        await Supabase.instance.client
-                            .from('critiquer')
-                            .update({
-                              'notecritique': rating,
-                              'commentairecritique': commentController.text.trim(),
-                              'datecritique': DateTime.now().toIso8601String(),
-                            })
-                            .eq('idutilisateur', userId)
-                            .eq('idrestaurant', widget.restaurantId);
-                            print("success");
-                            print(userId);
-                            print(widget.restaurantId);
-                      } else {
-                        await Supabase.instance.client.from('critiquer').insert({
-                          'idutilisateur': userId,
-                          'idrestaurant': widget.restaurantId,
-                          'notecritique': rating,
-                          'commentairecritique': commentController.text.trim(),
-                          'datecritique': DateTime.now().toIso8601String(),
-                        });
-                      }
+                      await Supabase.instance.client.from('critiquer').insert({
+                        'idutilisateur': userId,
+                        'idrestaurant': widget.restaurantId,
+                        'notecritique': rating,
+                        'commentairecritique': commentController.text.trim(),
+                        'datecritique': DateTime.now().toIso8601String(),
+                      });
 
-                      // Only pop and refresh if the operation succeeds
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            hasUserReviewed
-                                ? 'Avis modifié avec succès !'
-                                : 'Avis soumis avec succès !',
-                          ),
-                          duration: Duration(seconds: 1),
-                        ),
+                        SnackBar(content: Text('Avis soumis avec succès !')),
                       );
-                      await _fetchRestaurantDetails();
+                      _fetchRestaurantDetails(); 
                     } catch (e) {
-                      print('Erreur lors de la soumission : $e');
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Erreur lors de la soumission : $e'),
-                          duration: Duration(seconds: 1),
-                          ),
+                        SnackBar(content: Text('Erreur lors de la soumission : $e')),
                       );
                     }
                   },
                   child: Text(
-                    hasUserReviewed ? 'Modifier' : 'Soumettre',
+                    'Soumettre',
                     style: GoogleFonts.raleway(color: Colors.white),
                   ),
                 ),
@@ -502,7 +400,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
           backgroundColor: goldColor,
           icon: Icon(Icons.rate_review, color: Colors.white),
           label: Text(
-            hasUserReviewed ? 'Modifier avis' : 'Ajouter avis',
+            'Ajouter avis',
             style: GoogleFonts.raleway(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -572,6 +470,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                               ),
                             ],
                           ),
+
                           _buildSectionTitle('Informations Générales'),
                           _buildInfoRow('Nom', restaurantDetails?['nomrestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('Étoiles',
@@ -585,6 +484,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                               (restaurantDetails?['capaciterestaurant'] != null
                                   ? '${restaurantDetails!['capaciterestaurant']} personnes'
                                   : 'Non spécifié')),
+
                           _buildSectionTitle('Cuisine'),
                           _buildInfoRow('Établissement', _formatRestaurantType(restaurantDetails?['typerestaurant'])),
                           _buildInfoRow('Cuisine',
@@ -595,6 +495,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                               restaurantDetails?['vegetarienrestaurant'] == true ? 'Oui' : 'Non'),
                           _buildInfoRow('Vegan',
                               restaurantDetails?['veganrestaurant'] == true ? 'Oui' : 'Non'),
+
                           _buildSectionTitle('Localisation'),
                           _buildInfoRow('Pays', locationDetails?['payslocalisation'] ?? 'Non spécifié'),
                           _buildInfoRow('Région', locationDetails?['regionlocalisation'] ?? 'Non spécifié'),
@@ -609,6 +510,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                           _buildInfoRow('Téléphone', _formatPhoneNumber(restaurantDetails?['telephonerestaurant'])),
                           _buildInfoRow('Coordonnées', locationDetails?['coordonneeslocalisation'] ?? 'Non spécifié'),
                           _buildInfoRow('OpenStreetMap', locationDetails?['cartelien'] ?? 'Non spécifié'),
+
                           _buildSectionTitle('Services'),
                           _buildInfoRow('Livraison',
                               restaurantDetails?['livraisonrestaurant'] == true ? 'Oui' : 'Non'),
@@ -622,10 +524,12 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                               restaurantDetails?['handicaprestaurant'] == true ? 'Oui' : 'Non'),
                           _buildInfoRow('Espace fumeur',
                               restaurantDetails?['fumerrestaurant'] == true ? 'Oui' : 'Non'),
+
                           _buildSectionTitle('Liens Externes'),
                           _buildInfoRow('Site Web', restaurantDetails?['sitewebrestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('Facebook', restaurantDetails?['facebookrestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('Wikidata', restaurantDetails?['wikidatalien'] ?? 'Non spécifié'),
+
                           _buildSectionTitle('Horaires d\'ouverture'),
                           openingHours.isNotEmpty
                               ? Column(
@@ -637,6 +541,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                                       .toList(),
                                 )
                               : _buildInfoRow('Horaires', 'Non spécifié'),
+
                           _buildSectionTitle('Critiques'),
                           reviews.isNotEmpty
                               ? Column(
