@@ -301,6 +301,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide(color: goldColor, width: 2),
                               ),
+                              errorText: _selectedDate == null
+                                  ? null
+                                  : _selectedDate!.isAfter(DateTime.now().subtract(const Duration(days: 13 * 365)))
+                                      ? 'Vous devez avoir au moins 13 ans'
+                                      : null,
                             ),
                             child: Text(
                               _selectedDate == null
@@ -352,13 +357,15 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(color: goldColor, width: 2),
                             ),
+                            hintText: 'ex: 0612345678',
                           ),
                           validator: FormBuilderValidators.compose([
                             FormBuilderValidators.required(
                                 errorText: 'Veuillez entrer votre numéro de téléphone'),
                             FormBuilderValidators.match(
-                                RegExp(r'^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$'),
-                                errorText: 'Veuillez entrer un numéro de téléphone valide'),
+                              RegExp(r'^(0|\+33)[1-9]\d{8}$'),
+                              errorText: 'Numéro invalide (ex: 0612345678 ou +33612345678)',
+                            ),
                           ]),
                         ),
                         const SizedBox(height: 16),
@@ -381,11 +388,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             FormBuilderValidators.required(
                                 errorText: 'Veuillez entrer votre email'),
                             FormBuilderValidators.email(
-                                errorText: 'Veuillez entrer un email valide'),
-                            FormBuilderValidators.match(
-                              RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'),
-                              errorText: 'L\'email doit être au format valide (ex: nom@domaine.com)',
-                            ),
+                                errorText: 'Veuillez entrer un email valide')
                           ]),
                         ),
                         const SizedBox(height: 16),
@@ -414,13 +417,33 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderSide: BorderSide(color: goldColor, width: 2),
                             ),
                           ),
-                          validator: FormBuilderValidators.compose([
-                            FormBuilderValidators.required(
-                                errorText: 'Veuillez entrer un mot de passe'),
-                            FormBuilderValidators.minLength(6,
-                                errorText:
-                                    'Le mot de passe doit contenir au moins 6 caractères'),
-                          ]),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Veuillez entrer un mot de passe';
+                            }
+
+                            List<String> errors = [];
+
+                            if (value.length < 8) {
+                              errors.add('Minimum 8 caractères');
+                            }
+                            if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                              errors.add('Au moins une majuscule');
+                            }
+                            if (!RegExp(r'[a-z]').hasMatch(value)) {
+                              errors.add('Au moins une minuscule');
+                            }
+                            if (!RegExp(r'\d').hasMatch(value)) {
+                              errors.add('Au moins un chiffre');
+                            }
+                            if (!RegExp(r'[!@#$%^&*]').hasMatch(value)) {
+                              errors.add('Au moins un caractère spécial (!@#\$%^&*)');
+                            }
+                            if (errors.isNotEmpty) {
+                              return errors.join('\n');
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 16),
                         FormBuilderTextField(
@@ -454,7 +477,8 @@ class _RegisterPageState extends State<RegisterPage> {
                             FormBuilderValidators.required(
                                 errorText: 'Veuillez confirmer votre mot de passe'),
                             (value) {
-                              if (value != _formKey.currentState?.fields['password']?.value) {
+                              if (value !=
+                                  _formKey.currentState?.fields['password']?.value) {
                                 return 'Les mots de passe ne correspondent pas';
                               }
                               return null;
