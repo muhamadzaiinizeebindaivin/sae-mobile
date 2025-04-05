@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -43,7 +42,7 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
 
       final reviewsResponse = await Supabase.instance.client
           .from('critiquer')
-          .select('notecritique, commentairecritique, datecritique, restaurant(nomrestaurant)')
+          .select('idrestaurant, notecritique, commentairecritique, datecritique, restaurant(nomrestaurant)')
           .eq('idutilisateur', userId)
           .order('datecritique', ascending: false);
 
@@ -65,57 +64,122 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
     final int rating = review['notecritique'];
     final String comment = review['commentairecritique'] ?? 'Aucun commentaire';
     final String date = review['datecritique'].toString().split(' ')[0];
+    final int restaurantId = review['idrestaurant'];
+    final goldColor = Theme.of(context).primaryColor; // Use the same goldColor as HomePage
 
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  restaurantName,
-                  style: GoogleFonts.raleway(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+    return StatefulBuilder(
+      builder: (context, setState) {
+        bool isHovered = false;
+
+        return MouseRegion(
+          onEnter: (_) {
+            setState(() {
+              isHovered = true;
+            });
+          },
+          onExit: (_) {
+            setState(() {
+              isHovered = false;
+            });
+          },
+          child: AnimatedContainer(
+            duration: Duration(milliseconds: 200),
+            transform: Matrix4.identity()..scale(isHovered ? 1.02 : 1.0),
+            transformAlignment: Alignment.center,
+            child: Card(
+              elevation: isHovered ? 8 : 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: isHovered ? Colors.grey[100] : Colors.white,
+              margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+              child: InkWell(
+                onTap: () {
+                  context.push('/restaurant-details', extra: {'restaurantId': restaurantId});
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      // Icon on the left with goldColor
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: goldColor.withOpacity(0.1), // Match HomePage
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.restaurant,
+                          color: goldColor, // Match HomePage
+                          size: 30,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      // Middle section with restaurant name, rating, and comment
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  restaurantName,
+                                  style: TextStyle(
+                                    fontFamily: 'Raleway',
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                Text(
+                                  date,
+                                  style: TextStyle(
+                                    fontFamily: 'Raleway',
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 4),
+                            Row(
+                              children: List.generate(5, (index) {
+                                return Icon(
+                                  index < rating ? Icons.star : Icons.star_border,
+                                  color: goldColor, // Match the star color with goldColor
+                                  size: 16,
+                                );
+                              }),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              comment,
+                              style: TextStyle(
+                                fontFamily: 'Raleway',
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Chevron on the right
+                      Icon(
+                        Icons.chevron_right,
+                        color: Colors.grey,
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  date,
-                  style: GoogleFonts.raleway(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: List.generate(5, (index) {
-                return Icon(
-                  index < rating ? Icons.star : Icons.star_border,
-                  color: Theme.of(context).primaryColor,
-                  size: 20,
-                );
-              }),
-            ),
-            SizedBox(height: 8),
-            Text(
-              comment,
-              style: GoogleFonts.raleway(
-                fontSize: 14,
-                color: Colors.black54,
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -127,7 +191,8 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
       appBar: AppBar(
         title: Text(
           'Mes Critiques',
-          style: GoogleFonts.raleway(
+          style: TextStyle(
+            fontFamily: 'Raleway',
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -145,14 +210,19 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
               ? Center(
                   child: Text(
                     errorMessage!,
-                    style: GoogleFonts.raleway(fontSize: 16, color: Colors.red),
+                    style: TextStyle(
+                      fontFamily: 'Raleway',
+                      fontSize: 16,
+                      color: Colors.red,
+                    ),
                   ),
                 )
               : reviews.isEmpty
                   ? Center(
                       child: Text(
                         'Aucune critique pour le moment.',
-                        style: GoogleFonts.raleway(
+                        style: TextStyle(
+                          fontFamily: 'Raleway',
                           fontSize: 16,
                           color: Colors.black54,
                         ),
