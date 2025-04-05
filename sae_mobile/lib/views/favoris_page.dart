@@ -101,14 +101,12 @@ class _FavorisPageState extends State<FavorisPage> {
         .order('nomrestaurant', ascending: true);
       List<Map<String, dynamic>> restaurantsList = List<Map<String, dynamic>>.from(restaurantResponse);
 
-      // Charger les cuisines
       final cuisineResponse = await Supabase.instance.client
         .from('cuisine')
         .select('*')
         .order('nomcuisine', ascending: true);
       List<Map<String, dynamic>> cuisinesList = List<Map<String, dynamic>>.from(cuisineResponse);
 
-      // Charger les relations restaurant-cuisine
       final servirResponse = await Supabase.instance.client
         .from('servir')
         .select('idrestaurant, idcuisine')
@@ -280,7 +278,6 @@ class _FavorisPageState extends State<FavorisPage> {
           .single();
       
       int idUtilisateur = userResponse['idutilisateur'];
-      
       bool isFavorite = favoris.contains(restaurantId);
       
       if (isFavorite) {
@@ -294,15 +291,47 @@ class _FavorisPageState extends State<FavorisPage> {
           favoriteRestaurants.removeWhere((r) => r['idrestaurant'] == restaurantId);
           _applyFilters();
         });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Restaurant retiré des favoris',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.grey,
+          ),
+        );
       } else {
         await Supabase.instance.client
             .from('aimer')
             .insert({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
             
-        _loadFavoris();
+        setState(() {
+          favoris.add(restaurantId);
+          _loadFavoris(); // Recharger pour obtenir les nouvelles données
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Restaurant ajouté aux favoris',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Color(0xFFD4AF37),
+          ),
+        );
       }
     } catch (e) {
       print('Erreur lors de la modification des favoris: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: Impossible de modifier les favoris',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -838,12 +867,12 @@ class _FavorisPageState extends State<FavorisPage> {
                                   });
                                 },
                                 child: SizedBox(
-                                  height: 130, 
+                                  height: 130,
                                   child: Row(
                                     children: [
                                       Container(
                                         width: 115,
-                                        height: 130, 
+                                        height: 130,
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.only(
                                             topLeft: Radius.circular(12),
@@ -862,82 +891,85 @@ class _FavorisPageState extends State<FavorisPage> {
                                         ),
                                       ),
                                       Expanded(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(12.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    restaurant['nomrestaurant'] ?? 'Sans nom',
-                                                    style: GoogleFonts.raleway(
-                                                      fontSize: 16,
-                                                      fontWeight: FontWeight.bold,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12.0),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      restaurant['nomrestaurant'] ?? 'Sans nom',
+                                                      style: GoogleFonts.raleway(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
                                                     ),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      favoris.contains(restaurantId)
+                                                          ? Icons.favorite
+                                                          : Icons.favorite_border,
+                                                      color: favoris.contains(restaurantId)
+                                                          ? Colors.red
+                                                          : Colors.grey,
+                                                    ),
+                                                    onPressed: () => _toggleFavori(restaurantId),
+                                                  ),
+                                                ],
+                                              ),
+                                              SizedBox(height: 6),
+                                              Text(
+                                                restaurantType,
+                                                style: GoogleFonts.raleway(
+                                                  fontSize: 14,
+                                                  color: Colors.black87,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              if (cuisineNames.isNotEmpty) ...[
+                                                SizedBox(height: 6),
+                                                SingleChildScrollView(
+                                                  scrollDirection: Axis.horizontal,
+                                                  child: Wrap(
+                                                    spacing: 4,
+                                                    runSpacing: 4,
+                                                    children: cuisineNames.map((name) => Container(
+                                                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: goldColor.withOpacity(0.1),
+                                                        borderRadius: BorderRadius.circular(8),
+                                                        border: Border.all(color: goldColor.withOpacity(0.3)),
+                                                      ),
+                                                      child: Text(
+                                                        name,
+                                                        style: GoogleFonts.raleway(
+                                                          fontSize: 12,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                    )).toList(),
                                                   ),
                                                 ),
-                                                IconButton(
-                                                  icon: Icon(
-                                                    favoriteRestaurants.any((r) => r['idrestaurant'] == restaurantId)
-                                                        ? Icons.favorite
-                                                        : Icons.favorite_border,
-                                                    ),
-                                                  onPressed: () => _toggleFavori,
-                                                ),
                                               ],
-                                            ),
-                                            SizedBox(height: 6),
-                                            Text(
-                                              restaurantType,
-                                              style: GoogleFonts.raleway(
-                                                fontSize: 14,
-                                                color: Colors.black87,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            if (cuisineNames.isNotEmpty) ...[
-                                              SizedBox(height: 6),
-                                              SingleChildScrollView(
-                                                scrollDirection: Axis.horizontal,
-                                                child: Wrap(
-                                                  spacing: 4,
-                                                  runSpacing: 4,
-                                                  children: cuisineNames.map((name) => Container(
-                                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                    decoration: BoxDecoration(
-                                                      color: goldColor.withOpacity(0.1),
-                                                      borderRadius: BorderRadius.circular(8),
-                                                      border: Border.all(color: goldColor.withOpacity(0.3)),
-                                                    ),
-                                                    child: Text(
-                                                      name,
-                                                      style: GoogleFonts.raleway(
-                                                        fontSize: 12,
-                                                        color: Colors.black87,
-                                                      ),
-                                                    ),
-                                                  )).toList(),
-                                                ),
-                                              ),
                                             ],
-                                          ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        }
-                        )
+                            );
+                          },
+                        ),
                       ),
           ),
           if (!isLoading && filteredRestaurants.isNotEmpty)
