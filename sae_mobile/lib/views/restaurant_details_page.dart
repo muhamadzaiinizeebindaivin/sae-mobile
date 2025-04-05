@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
+import './restaurant_reviews.dart';
 
 class RestaurantDetailsPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
@@ -28,9 +29,9 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
   bool hasUserReviewed = false;
   Map<String, dynamic>? userReview;
 
-  final Color goldColor = Color(0xFFD4AF37);
-  final Color darkBackgroundColor = Color(0xFF1E1E1E);
-  final Color softGrayColor = Color(0xFFF5F5F5);
+  final Color goldColor = const Color(0xFFD4AF37);
+  final Color darkBackgroundColor = const Color(0xFF1E1E1E);
+  final Color softGrayColor = const Color(0xFFF5F5F5);
 
   @override
   void initState() {
@@ -197,267 +198,6 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
     );
   }
 
-  Widget _buildReviewCard(Map<String, dynamic> review) {
-    final user = review['utilisateur'];
-    final String userName = '${user['prenomutilisateur']} ${user['nomutilisateur']}';
-    final int rating = review['notecritique'];
-    final String comment = review['commentairecritique'] ?? 'Aucun commentaire';
-    final String date = review['datecritique'].toString().split(' ')[0];
-
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 8.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  userName,
-                  style: GoogleFonts.raleway(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: darkBackgroundColor,
-                  ),
-                ),
-                Text(
-                  date,
-                  style: GoogleFonts.raleway(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: List.generate(5, (index) {
-                return Icon(
-                  index < rating ? Icons.star : Icons.star_border,
-                  color: goldColor,
-                  size: 20,
-                );
-              }),
-            ),
-            SizedBox(height: 8),
-            Text(
-              comment,
-              style: GoogleFonts.raleway(
-                fontSize: 14,
-                color: darkBackgroundColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showReviewDialog() {
-    final TextEditingController commentController = TextEditingController(
-      text: hasUserReviewed ? userReview!['commentairecritique'] : '',
-    );
-    int rating = hasUserReviewed ? userReview!['notecritique'] : 0;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(
-                hasUserReviewed ? 'Modifier avis' : 'Laisser un avis',
-                style: GoogleFonts.raleway(
-                  fontWeight: FontWeight.bold,
-                  color: darkBackgroundColor,
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Notez le restaurant',
-                      style: GoogleFonts.raleway(fontSize: 16),
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        return IconButton(
-                          icon: Icon(
-                            index < rating ? Icons.star : Icons.star_border,
-                            color: goldColor,
-                          ),
-                          onPressed: () {
-                            setDialogState(() {
-                              rating = index + 1;
-                            });
-                          },
-                        );
-                      }),
-                    ),
-                    SizedBox(height: 16),
-                    TextField(
-                      controller: commentController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'Votre commentaire',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Annuler', style: TextStyle(color: Colors.grey)),
-                ),
-                if (hasUserReviewed)
-                  TextButton(
-                    onPressed: () async {
-                      try {
-                        final user = Supabase.instance.client.auth.currentUser;
-                        if (user == null) throw Exception('Utilisateur non connecté');
-
-                        final userResponse = await Supabase.instance.client
-                            .from('utilisateur')
-                            .select('idutilisateur')
-                            .eq('emailutilisateur', user.email!)
-                            .single();
-
-                        int userId = userResponse['idutilisateur'];
-
-                        await Supabase.instance.client
-                            .from('critiquer')
-                            .delete()
-                            .eq('idutilisateur', userId)
-                            .eq('idrestaurant', widget.restaurantId);
-
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Avis supprimé avec succès !'),
-                            duration: Duration(seconds: 1),
-                            ),
-                        );
-                        await _fetchRestaurantDetails();
-                      } catch (e) {
-                        print('Erreur lors de la suppression : $e');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Erreur lors de la suppression : $e'), 
-                            duration: Duration(seconds: 1),
-                            ),
-                        );
-                      }
-                    },
-                    child: Text(
-                      'Supprimer',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: goldColor,
-                  ),
-                  onPressed: () async {
-                    if (rating == 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Veuillez sélectionner une note'),
-                          duration: Duration(seconds: 1),
-                          ),
-                      );
-                      return;
-                    }
-                    if (commentController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Veuillez entrer un commentaire'),
-                          duration: Duration(seconds: 1),
-                        ),
-                        
-                      );
-                      return;
-                    }
-
-                    try {
-                      final user = Supabase.instance.client.auth.currentUser;
-                      if (user == null) throw Exception('Utilisateur non connecté');
-
-                      final userResponse = await Supabase.instance.client
-                          .from('utilisateur')
-                          .select('idutilisateur')
-                          .eq('emailutilisateur', user.email!)
-                          .single();
-
-                      int userId = userResponse['idutilisateur'];
-
-                      if (hasUserReviewed) {
-                        await Supabase.instance.client
-                            .from('critiquer')
-                            .update({
-                              'notecritique': rating,
-                              'commentairecritique': commentController.text.trim(),
-                              'datecritique': DateTime.now().toIso8601String(),
-                            })
-                            .eq('idutilisateur', userId)
-                            .eq('idrestaurant', widget.restaurantId);
-                            print("success");
-                            print(userId);
-                            print(widget.restaurantId);
-                      } else {
-                        await Supabase.instance.client.from('critiquer').insert({
-                          'idutilisateur': userId,
-                          'idrestaurant': widget.restaurantId,
-                          'notecritique': rating,
-                          'commentairecritique': commentController.text.trim(),
-                          'datecritique': DateTime.now().toIso8601String(),
-                        });
-                      }
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            hasUserReviewed
-                                ? 'Avis modifié avec succès !'
-                                : 'Avis soumis avec succès !',
-                          ),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                      await _fetchRestaurantDetails();
-                    } catch (e) {
-                      print('Erreur lors de la soumission : $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Erreur lors de la soumission : $e'),
-                          duration: Duration(seconds: 1),
-                          ),
-                      );
-                    }
-                  },
-                  child: Text(
-                    hasUserReviewed ? 'Modifier' : 'Soumettre',
-                    style: GoogleFonts.raleway(color: Colors.white),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -479,32 +219,8 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
           backgroundColor: goldColor,
           centerTitle: true,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: Colors.white),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => context.pop(),
-          ),
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            final user = Supabase.instance.client.auth.currentUser;
-            if (user == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Vous devez être connecté pour laisser un avis'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-              return;
-            }
-            _showReviewDialog();
-          },
-          backgroundColor: goldColor,
-          icon: Icon(Icons.rate_review, color: Colors.white),
-          label: Text(
-            hasUserReviewed ? 'Modifier avis' : 'Ajouter avis',
-            style: GoogleFonts.raleway(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
           ),
         ),
         body: isLoading
@@ -538,9 +254,9 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                                 left: 0,
                                 right: 0,
                                 child: Container(
-                                  padding: EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.only(
+                                    borderRadius: const BorderRadius.only(
                                       bottomLeft: Radius.circular(15),
                                       bottomRight: Radius.circular(15),
                                     ),
@@ -573,16 +289,16 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                           _buildSectionTitle('Informations Générales'),
                           _buildInfoRow('Nom', restaurantDetails?['nomrestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('Étoiles',
-                              (restaurantDetails?['etoilerestaurant'] != null
+                              restaurantDetails?['etoilerestaurant'] != null
                                   ? '${restaurantDetails!['etoilerestaurant']}/5'
-                                  : 'Non spécifié')),
+                                  : 'Non spécifié'),
                           _buildInfoRow('Marque', restaurantDetails?['marquerestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('Gérant', restaurantDetails?['gerantrestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('SIRET', restaurantDetails?['siretrestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('Capacité',
-                              (restaurantDetails?['capaciterestaurant'] != null
+                              restaurantDetails?['capaciterestaurant'] != null
                                   ? '${restaurantDetails!['capaciterestaurant']} personnes'
-                                  : 'Non spécifié')),
+                                  : 'Non spécifié'),
                           _buildSectionTitle('Cuisine'),
                           _buildInfoRow('Établissement', _formatRestaurantType(restaurantDetails?['typerestaurant'])),
                           _buildInfoRow('Cuisine',
@@ -635,21 +351,15 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                                       .toList(),
                                 )
                               : _buildInfoRow('Horaires', 'Non spécifié'),
-                          _buildSectionTitle('Critiques'),
-                          reviews.isNotEmpty
-                              ? Column(
-                                  children: reviews.map((review) => _buildReviewCard(review)).toList(),
-                                )
-                              : Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Text(
-                                    'Aucun avis pour le moment.',
-                                    style: GoogleFonts.raleway(
-                                      fontSize: 16,
-                                      color: darkBackgroundColor,
-                                    ),
-                                  ),
-                                ),
+                          RestaurantReviews(
+                            restaurantId: widget.restaurantId,
+                            reviews: reviews,
+                            hasUserReviewed: hasUserReviewed,
+                            userReview: userReview,
+                            onReviewUpdated: _fetchRestaurantDetails,
+                            goldColor: goldColor,
+                            darkBackgroundColor: darkBackgroundColor,
+                          ),
                         ],
                       ),
                     ),
