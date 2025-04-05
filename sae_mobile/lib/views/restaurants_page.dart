@@ -18,6 +18,7 @@ class RestaurantsPage extends StatefulWidget {
 
 class _RestaurantsPageState extends State<RestaurantsPage> {
   List<int> favoris = [];
+  
   List<Map<String, dynamic>> allRestaurants = [];
   List<Map<String, dynamic>> filteredRestaurants = [];
   List<Map<String, dynamic>> allCuisines = [];
