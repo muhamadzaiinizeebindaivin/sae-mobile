@@ -3,34 +3,26 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FavorisViewModel extends ChangeNotifier {
   List<int> favoris = [];
-  List<Map<String, dynamic>> favoriteRestaurants = [];
-  List<Map<String, dynamic>> filteredRestaurants = [];
-  List<Map<String, dynamic>> allCuisines = [];
-  Map<int, List<int>> restaurantCuisines = {};
-  Map<int, Map<String, dynamic>> cuisinesById = {};
-  List<String> restaurantTypes = [];
-  String? selectedType;
-  int? selectedCuisineId;
+  List<Map<String, dynamic>> favoriteCuisines = [];
+  List<Map<String, dynamic>> filteredCuisines = [];
+  Map<int, int> restaurantCount = {};
   bool isLoading = true;
-  int itemsPerPage = 30;
-  int currentPage = 0;
-  int totalPages = 0;
-  String searchQuery = '';
 
-  bool? isVegetarian;
-  bool? isVegan;
-  bool? hasDelivery;
-  bool? hasTakeaway;
-  bool? hasDrive;
-  bool? hasInternet;
-  bool? isHandicapAccessible;
-  bool? allowsSmoking;
+  int currentPage = 0;
+  final int itemsPerPage = 8;
+  int totalPages = 0;
 
   final TextEditingController searchController = TextEditingController();
 
   FavorisViewModel() {
-    searchController.addListener(_applyFilters);
+    searchController.addListener(_filterCuisines);
     _loadFavoris();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFavoris() async {
@@ -40,6 +32,9 @@ class FavorisViewModel extends ChangeNotifier {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null || user.email == null) {
         isLoading = false;
+        favoris = [];
+        favoriteCuisines = [];
+        filteredCuisines = [];
         notifyListeners();
         return;
       }
@@ -53,65 +48,51 @@ class FavorisViewModel extends ChangeNotifier {
       int idUtilisateur = userResponse['idutilisateur'];
 
       final favResponse = await Supabase.instance.client
-          .from('aimer')
-          .select('idrestaurant')
+          .from('preferer')
+          .select('idcuisine')
           .eq('idutilisateur', idUtilisateur);
 
       List<int> favorisIds =
-          favResponse.map<int>((fav) => fav['idrestaurant'] as int).toList();
+          favResponse.map<int>((fav) => fav['idcuisine'] as int).toList();
 
       if (favorisIds.isEmpty) {
         favoris = [];
-        favoriteRestaurants = [];
-        filteredRestaurants = [];
+        favoriteCuisines = [];
+        filteredCuisines = [];
         isLoading = false;
         notifyListeners();
         return;
       }
 
-      final restaurantResponse = await Supabase.instance.client
-          .from('restaurant')
-          .select('*')
-          .filter('idrestaurant', 'in', favorisIds)
-          .order('nomrestaurant', ascending: true);
-      favoriteRestaurants = List<Map<String, dynamic>>.from(restaurantResponse);
-
       final cuisineResponse = await Supabase.instance.client
           .from('cuisine')
           .select('*')
+          .filter('idcuisine', 'in', favorisIds)
           .order('nomcuisine', ascending: true);
-      allCuisines = List<Map<String, dynamic>>.from(cuisineResponse);
+
+      List<Map<String, dynamic>> cuisinesList =
+          List<Map<String, dynamic>>.from(cuisineResponse);
 
       final servirResponse = await Supabase.instance.client
           .from('servir')
-          .select('idrestaurant, idcuisine')
-          .filter('idrestaurant', 'in', favorisIds);
+          .select('idcuisine, idrestaurant')
+          .filter('idcuisine', 'in', favorisIds);
+
       List<Map<String, dynamic>> servirList =
           List<Map<String, dynamic>>.from(servirResponse);
 
-      cuisinesById = {
-        for (var cuisine in allCuisines) cuisine['idcuisine']: cuisine
-      };
-
-      restaurantCuisines = {};
+      Map<int, int> countMap = {};
       for (var servir in servirList) {
-        int restaurantId = servir['idrestaurant'];
         int cuisineId = servir['idcuisine'];
-        restaurantCuisines
-            .putIfAbsent(restaurantId, () => [])
-            .add(cuisineId);
+        countMap[cuisineId] = (countMap[cuisineId] ?? 0) + 1;
       }
 
-      restaurantTypes = favoriteRestaurants
-          .map((r) => r['typerestaurant']?.toString() ?? '')
-          .where((type) => type.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
-
       favoris = favorisIds;
-      _applyFilters();
+      favoriteCuisines = cuisinesList;
+      filteredCuisines = cuisinesList;
+      restaurantCount = countMap;
       isLoading = false;
+      _updateTotalPages();
       notifyListeners();
     } catch (e) {
       print('Erreur lors du chargement des favoris: $e');
@@ -120,7 +101,47 @@ class FavorisViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> toggleFavori(int restaurantId) async {
+  void _filterCuisines() {
+    final query = searchController.text.toLowerCase();
+
+    if (query.isEmpty) {
+      filteredCuisines = favoriteCuisines;
+    } else {
+      filteredCuisines = favoriteCuisines
+          .where((cuisine) =>
+              cuisine['nomcuisine'].toString().toLowerCase().startsWith(query))
+          .toList();
+    }
+    currentPage = 0;
+    _updateTotalPages();
+    notifyListeners();
+  }
+
+  void _updateTotalPages() {
+    totalPages = (filteredCuisines.length / itemsPerPage).ceil();
+    if (totalPages == 0) totalPages = 1;
+  }
+
+  List<Map<String, dynamic>> getPaginatedCuisines() {
+    final startIndex = currentPage * itemsPerPage;
+    final endIndex = (startIndex + itemsPerPage) > filteredCuisines.length
+        ? filteredCuisines.length
+        : startIndex + itemsPerPage;
+
+    if (startIndex >= filteredCuisines.length) {
+      return [];
+    }
+
+    return filteredCuisines.sublist(startIndex, endIndex);
+  }
+
+  String formatCuisineName(String text) {
+    if (text.isEmpty) return text;
+    String formattedText = text.replaceAll('_', ' ').replaceAll('-', ' ');
+    return formattedText[0].toUpperCase() + formattedText.substring(1).toLowerCase();
+  }
+
+  Future<void> toggleFavori(int cuisineId, BuildContext context) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null || user.email == null) return;
@@ -133,118 +154,43 @@ class FavorisViewModel extends ChangeNotifier {
 
       int idUtilisateur = userResponse['idutilisateur'];
 
-      bool isFavorite = favoris.contains(restaurantId);
+      bool isFavori = favoris.contains(cuisineId);
 
-      if (isFavorite) {
+      if (isFavori) {
         await Supabase.instance.client
-            .from('aimer')
+            .from('preferer')
             .delete()
-            .match({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
-        favoris.remove(restaurantId);
-        favoriteRestaurants.removeWhere((r) => r['idrestaurant'] == restaurantId);
+            .match({'idutilisateur': idUtilisateur, 'idcuisine': cuisineId});
+
+        favoris.remove(cuisineId);
+        favoriteCuisines.removeWhere((c) => c['idcuisine'] == cuisineId);
+        _filterCuisines();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cuisine retirée des favoris'),
+            backgroundColor: Colors.grey,
+          ),
+        );
       } else {
-        await Supabase.instance.client.from('aimer').insert({
+        await Supabase.instance.client.from('preferer').insert({
           'idutilisateur': idUtilisateur,
-          'idrestaurant': restaurantId,
+          'idcuisine': cuisineId,
+          'dateprefere': DateTime.now().toIso8601String().split('T')[0],
         });
-        _loadFavoris();
+
+        await _loadFavoris(); // Recharger pour ajouter la nouvelle cuisine
       }
-      _applyFilters();
       notifyListeners();
     } catch (e) {
       print('Erreur lors de la modification des favoris: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: Impossible de modifier les favoris'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-  }
-
-  void _applyFilters() {
-    searchQuery = searchController.text;
-    filteredRestaurants = favoriteRestaurants.where((restaurant) {
-      final name = restaurant['nomrestaurant']?.toString().toLowerCase() ?? '';
-      final type = restaurant['typerestaurant']?.toString() ?? '';
-      final restaurantId = restaurant['idrestaurant'];
-
-      bool matchesSearch = searchQuery.isEmpty || name.startsWith(searchQuery.toLowerCase());
-      bool matchesType = selectedType == null || type == selectedType;
-      bool matchesCuisine = selectedCuisineId == null ||
-          (restaurantCuisines[restaurantId]?.contains(selectedCuisineId) ?? false);
-
-      bool matchesVegetarian = isVegetarian == null || restaurant['vegetarienrestaurant'] == isVegetarian;
-      bool matchesVegan = isVegan == null || restaurant['veganrestaurant'] == isVegan;
-      bool matchesDelivery = hasDelivery == null || restaurant['livraisonrestaurant'] == hasDelivery;
-      bool matchesTakeaway = hasTakeaway == null || restaurant['emporterrestaurant'] == hasTakeaway;
-      bool matchesDrive = hasDrive == null || restaurant['driverestaurant'] == hasDrive;
-      bool matchesInternet = hasInternet == null || restaurant['internetrestaurant'] == hasInternet;
-      bool matchesHandicap = isHandicapAccessible == null || restaurant['handicaprestaurant'] == isHandicapAccessible;
-      bool matchesSmoking = allowsSmoking == null || restaurant['fumerrestaurant'] == allowsSmoking;
-
-      return matchesSearch &&
-          matchesType &&
-          matchesCuisine &&
-          matchesVegetarian &&
-          matchesVegan &&
-          matchesDelivery &&
-          matchesTakeaway &&
-          matchesDrive &&
-          matchesInternet &&
-          matchesHandicap &&
-          matchesSmoking;
-    }).toList();
-
-    currentPage = 0;
-    totalPages = (filteredRestaurants.length / itemsPerPage).ceil();
-    if (totalPages == 0) totalPages = 1;
-    notifyListeners();
-  }
-
-  List<Map<String, dynamic>> getPaginatedData() {
-    if (filteredRestaurants.isEmpty) return [];
-    final startIndex = currentPage * itemsPerPage;
-    final endIndex = (currentPage + 1) * itemsPerPage;
-    if (startIndex >= filteredRestaurants.length) return [];
-    return filteredRestaurants.sublist(
-      startIndex,
-      endIndex > filteredRestaurants.length ? filteredRestaurants.length : endIndex,
-    );
-  }
-
-  void setFilter(String filter, bool? value) {
-    switch (filter) {
-      case 'vegetarian':
-        isVegetarian = value;
-        break;
-      case 'vegan':
-        isVegan = value;
-        break;
-      case 'delivery':
-        hasDelivery = value;
-        break;
-      case 'takeaway':
-        hasTakeaway = value;
-        break;
-      case 'drive':
-        hasDrive = value;
-        break;
-      case 'internet':
-        hasInternet = value;
-        break;
-      case 'handicap':
-        isHandicapAccessible = value;
-        break;
-      case 'smoking':
-        allowsSmoking = value;
-        break;
-    }
-    _applyFilters();
-  }
-
-  void setSelectedType(String? value) {
-    selectedType = value;
-    _applyFilters();
-  }
-
-  void setSelectedCuisineId(int? value) {
-    selectedCuisineId = value;
-    _applyFilters();
   }
 
   void nextPage() {
@@ -260,22 +206,4 @@ class FavorisViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  String formatRestaurantType(String? type) {
-    if (type == null || type.isEmpty) return 'Standard';
-    String formattedType = type.replaceAll('-', ' ').replaceAll('_', ' ').replaceAll('cafe', 'café');
-    return formattedType.split(' ').map((word) => word.isEmpty ? word : (word[0].toUpperCase() + word.substring(1).toLowerCase())).join(' ');
-  }
-
-  String formatCuisineName(String text) {
-    if (text.isEmpty) return text;
-    String formattedText = text.replaceAll('_', ' ').replaceAll('-', ' ');
-    return formattedText[0].toUpperCase() + formattedText.substring(1).toLowerCase();
-  }
-
-  String? get selectedCuisineName {
-    if (selectedCuisineId == null) return null;
-    final cuisine = cuisinesById[selectedCuisineId];
-    return cuisine != null ? formatCuisineName(cuisine['nomcuisine'] ?? 'Sans nom') : null;
-  }
-} 
+}
