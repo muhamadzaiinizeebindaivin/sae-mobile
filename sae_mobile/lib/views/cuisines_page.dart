@@ -22,16 +22,19 @@ class _CuisinesPageState extends State<CuisinesPage> {
   List<Map<String, dynamic>> filteredCuisines = [];
   Map<int, int> restaurantCount = {};
   bool isLoading = true;
+  bool isUserLoggedIn = false;
   
   int currentPage = 0;
   final int itemsPerPage = 8;
   int totalPages = 0;
   
   final TextEditingController searchController = TextEditingController();
+  String activeFilter = 'Tous';
   
   @override
   void initState() {
     super.initState();
+    _checkUserLoginStatus();
     _loadCuisines();
     
     searchController.addListener(() {
@@ -86,16 +89,63 @@ class _CuisinesPageState extends State<CuisinesPage> {
     
     setState(() {
       if (query.isEmpty) {
-        filteredCuisines = allCuisines;
+        if (activeFilter == 'Tous') {
+          filteredCuisines = allCuisines;
+        } else if (activeFilter == 'Favoris') {
+          filteredCuisines = allCuisines
+              .where((cuisine) => favoris.contains(cuisine['idcuisine']))
+              .toList();
+        } else if (activeFilter == 'Non favoris') {
+          filteredCuisines = allCuisines
+              .where((cuisine) => !favoris.contains(cuisine['idcuisine']))
+              .toList();
+        }
       } else {
         filteredCuisines = allCuisines
             .where((cuisine) => 
                 cuisine['nomcuisine'].toString().toLowerCase().startsWith(query))
             .toList();
+        if (activeFilter == 'Favoris') {
+          filteredCuisines = filteredCuisines
+              .where((cuisine) => favoris.contains(cuisine['idcuisine']))
+              .toList();
+        } else if (activeFilter == 'Non favoris') {
+          filteredCuisines = filteredCuisines
+              .where((cuisine) => !favoris.contains(cuisine['idcuisine']))
+              .toList();
+        }
       }
       currentPage = 0;
       _updateTotalPages();
     });
+  }
+
+  Future<void> _checkUserLoginStatus() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    setState(() {
+      isUserLoggedIn = user != null && user.email != null;
+    });
+    
+    if (isUserLoggedIn) {
+      try {
+        final userResponse = await Supabase.instance.client
+            .from('utilisateur')
+            .select('idutilisateur')
+            .eq('emailutilisateur', user!.email!)
+            .single();
+        
+        final favorisResponse = await Supabase.instance.client
+            .from('preferer')
+            .select('idcuisine')
+            .eq('idutilisateur', userResponse['idutilisateur']);
+        
+        setState(() {
+          favoris = favorisResponse.map((f) => f['idcuisine'] as int).toList();
+        });
+      } catch (e) {
+        print('Erreur lors du chargement des favoris: $e');
+      }
+    }
   }
   
   void _updateTotalPages() {
@@ -158,30 +208,134 @@ class _CuisinesPageState extends State<CuisinesPage> {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: TextField(
-                    controller: searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un type de cuisine...',
-                      prefixIcon: Icon(Icons.search, color: goldColor),
-                      suffixIcon: searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear),
-                              onPressed: () {
-                                searchController.clear();
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: goldColor.withOpacity(0.5)),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher un type de cuisine...',
+                          prefixIcon: Icon(Icons.search, color: goldColor),
+                          suffixIcon: searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear),
+                                  onPressed: () {
+                                    searchController.clear();
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: goldColor.withOpacity(0.5)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: goldColor),
+                          ),
+                        ),
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: goldColor),
-                      ),
-                    ),
+                      if (isUserLoggedIn) ...[
+                        SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    filteredCuisines = allCuisines;
+                                    currentPage = 0;
+                                    _updateTotalPages();
+                                    activeFilter = 'Tous';
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: activeFilter == 'Tous' ? goldColor : Colors.white,
+                                  foregroundColor: activeFilter == 'Tous' ? Colors.white : goldColor,
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: activeFilter != 'Tous' 
+                                        ? BorderSide(color: goldColor) 
+                                        : BorderSide.none,
+                                  ),
+                                ),
+                                child: Text(
+                                  'Tous',
+                                  style: GoogleFonts.raleway(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    filteredCuisines = allCuisines
+                                        .where((cuisine) => favoris.contains(cuisine['idcuisine']))
+                                        .toList();
+                                    currentPage = 0;
+                                    _updateTotalPages();
+                                    activeFilter = 'Favoris';
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: activeFilter == 'Favoris' ? goldColor : Colors.white,
+                                  foregroundColor: activeFilter == 'Favoris' ? Colors.white : goldColor,
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: activeFilter != 'Favoris' 
+                                        ? BorderSide(color: goldColor) 
+                                        : BorderSide.none,
+                                  ),
+                                ),
+                                child: Text(
+                                  'Favoris',
+                                  style: GoogleFonts.raleway(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    filteredCuisines = allCuisines
+                                        .where((cuisine) => !favoris.contains(cuisine['idcuisine']))
+                                        .toList();
+                                    currentPage = 0;
+                                    _updateTotalPages();
+                                    activeFilter = 'Non favoris';
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: activeFilter == 'Non favoris' ? goldColor : Colors.white,
+                                  foregroundColor: activeFilter == 'Non favoris' ? Colors.white : goldColor,
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: activeFilter != 'Non favoris' 
+                                        ? BorderSide(color: goldColor) 
+                                        : BorderSide.none,
+                                  ),
+                                ),
+                                child: Text(
+                                  'Non favoris',
+                                  style: GoogleFonts.raleway(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 
@@ -202,7 +356,7 @@ class _CuisinesPageState extends State<CuisinesPage> {
                         child: GridView.builder(
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            childAspectRatio: 1.0,
+                            childAspectRatio: 0.8,
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
                           ),
@@ -214,7 +368,6 @@ class _CuisinesPageState extends State<CuisinesPage> {
                             final cuisineId = cuisine['idcuisine'];
                             final isFavori = favoris.contains(cuisineId);
 
-                            
                             return Card(
                               elevation: 4,
                               clipBehavior: Clip.antiAlias,
@@ -264,7 +417,7 @@ class _CuisinesPageState extends State<CuisinesPage> {
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 1,
                                             ),
-                                            SizedBox(height: 8),
+                                            SizedBox(height: 10),
                                             Container(
                                               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                               decoration: BoxDecoration(
@@ -280,13 +433,14 @@ class _CuisinesPageState extends State<CuisinesPage> {
                                                 ),
                                               ),
                                             ),
-                                            IconButton(
-                                                  icon: Icon(
-                                                    isFavori ? Icons.favorite : Icons.favorite_border,
-                                                    color: isFavori ? Colors.red : Colors.grey,
-                                                  ),
-                                                  onPressed: () => _toggleFavori(cuisineId),
+                                            if (isUserLoggedIn) 
+                                              IconButton(
+                                                icon: Icon(
+                                                  isFavori ? Icons.favorite : Icons.favorite_border,
+                                                  color: isFavori ? Colors.red : Colors.grey,
                                                 ),
+                                                onPressed: () => _toggleFavori(cuisineId),
+                                              ),
                                           ],
                                         ),
                                       ),
@@ -346,76 +500,98 @@ class _CuisinesPageState extends State<CuisinesPage> {
   }
 
   Future<void> _toggleFavori(int cuisineId) async {
-  try {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null || user.email == null) {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null || user.email == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Vous devez être connecté pour ajouter des favoris',
+              textAlign: TextAlign.center, 
+              style: GoogleFonts.raleway(
+                fontWeight: FontWeight.bold, 
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      final userResponse = await Supabase.instance.client
+          .from('utilisateur')
+          .select('idutilisateur')
+          .eq('emailutilisateur', user.email!)
+          .single();
+      
+      int idUtilisateur = userResponse['idutilisateur'];
+      
+      setState(() {
+        if (favoris.contains(cuisineId)) {
+          favoris.remove(cuisineId);
+        } else {
+          favoris.add(cuisineId);
+        }
+      });
+
+      if (!favoris.contains(cuisineId)) {
+        await Supabase.instance.client
+            .from('preferer')
+            .delete()
+            .match({'idutilisateur': idUtilisateur, 'idcuisine': cuisineId});
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cuisine retiré des favoris',
+              textAlign: TextAlign.center, 
+              style: GoogleFonts.raleway(
+                fontWeight: FontWeight.bold, 
+              ),
+            ),
+            backgroundColor: Colors.grey,
+          ),
+        );
+      } else {
+        await Supabase.instance.client.from('preferer').insert({
+          'dateprefere': DateTime.now().toIso8601String().split('T')[0],
+          'idutilisateur': idUtilisateur,
+          'idcuisine': cuisineId,
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cuisine ajouté aux favoris',
+              textAlign: TextAlign.center, 
+              style: GoogleFonts.raleway(
+                fontWeight: FontWeight.bold, 
+              ),
+            ),
+            backgroundColor: Color(0xFFD4AF37),
+          ),
+        );
+      }
+      
+      _filterCuisines();
+    } catch (e) {
+      setState(() {
+        if (favoris.contains(cuisineId)) {
+          favoris.remove(cuisineId);
+        } else {
+          favoris.add(cuisineId);
+        }
+      });
+      
+      print('Erreur lors de la modification des favoris: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Vous devez être connecté pour ajouter des favoris'),
+          content: Text('Erreur : Impossible de modifier les favoris',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.raleway(
+              fontWeight: FontWeight.bold, 
+            ),
+          ),
           backgroundColor: Colors.red,
         ),
       );
-      return;
     }
-    
-    final userResponse = await Supabase.instance.client
-        .from('utilisateur')
-        .select('idutilisateur')
-        .eq('emailutilisateur', user.email!)
-        .single();
-    
-    int idUtilisateur = userResponse['idutilisateur'];
-    
-    setState(() {
-      if (favoris.contains(cuisineId)) {
-        favoris.remove(cuisineId);
-      } else {
-        favoris.add(cuisineId);
-      }
-    });
-
-    if (!favoris.contains(cuisineId)) {
-      await Supabase.instance.client
-          .from('preferer')
-          .delete()
-          .match({'idutilisateur': idUtilisateur, 'idcuisine': cuisineId});
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Restaurant retiré des favoris'),
-          backgroundColor: Colors.grey,
-        ),
-      );
-    } else {
-      await Supabase.instance.client.from('preferer').insert({
-        'dateprefere': DateTime.now().toIso8601String().split('T')[0],
-        'idutilisateur': idUtilisateur,
-        'idcuisine': cuisineId,
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Restaurant ajouté aux favoris'),
-          backgroundColor: Color(0xFFD4AF37),
-        ),
-      );
-    }
-  } catch (e) {
-    setState(() {
-      if (favoris.contains(cuisineId)) {
-        favoris.remove(cuisineId);
-      } else {
-        favoris.add(cuisineId);
-      }
-    });
-    
-    print('Erreur lors de la modification des favoris: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Erreur: Impossible de modifier les favoris'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
 }

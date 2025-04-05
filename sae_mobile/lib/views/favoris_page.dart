@@ -993,7 +993,7 @@ class _FavorisPageState extends State<FavorisPage> {
     );
   }
   
-  Widget _buildInfoTag(String label, IconData icon, Color goldColor) {
+  Widget buildInfoTag(String label, IconData icon, Color goldColor) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(

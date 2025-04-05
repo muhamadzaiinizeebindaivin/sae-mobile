@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
-import 'package:sae_mobile/views/favoris_page.dart';
 
 
 class RestaurantsPage extends StatefulWidget {
@@ -33,6 +32,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
   int totalPages = 0;
   final TextEditingController _searchController = TextEditingController();
   String searchQuery = '';
+  bool isUserLoggedIn = false;
   
   bool? isVegetarian;
   bool? isVegan;
@@ -46,6 +46,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
   @override
   void initState() {
     super.initState();
+    _checkUserLoginStatus();
     _loadData();
     _loadFavoris();
     _searchController.addListener(() {
@@ -194,6 +195,13 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
       currentPage = 0;
       totalPages = (filteredRestaurants.length / itemsPerPage).ceil();
       if (totalPages == 0) totalPages = 1;
+    });
+  }
+
+  Future<void> _checkUserLoginStatus() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    setState(() {
+      isUserLoggedIn = user != null && user.email != null;
     });
   }
 
@@ -810,13 +818,14 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                                                     overflow: TextOverflow.ellipsis,
                                                   ),
                                                 ),
-                                                IconButton(
-                                                  icon: Icon(
-                                                    isFavori ? Icons.favorite : Icons.favorite_border,
-                                                    color: isFavori ? Colors.red : Colors.grey,
+                                                if (isUserLoggedIn) 
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      isFavori ? Icons.favorite : Icons.favorite_border,
+                                                      color: isFavori ? Colors.red : Colors.grey,
+                                                    ),
+                                                    onPressed: () => _toggleFavori(restaurantId),
                                                   ),
-                                                  onPressed: () => _toggleFavori(restaurantId),
-                                                ),
                                               ],
                                             ),
                                             SizedBox(height: 6),
@@ -920,7 +929,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
     );
   }
   
-  Widget _buildInfoTag(String label, IconData icon, Color goldColor) {
+  Widget buildInfoTag(String label, IconData icon, Color goldColor) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -977,7 +986,12 @@ Future<void> _toggleFavori(int restaurantId) async {
     if (user == null || user.email == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Vous devez être connecté pour ajouter des favoris'),
+          content: Text('Vous devez être connecté pour ajouter des favoris',
+            textAlign: TextAlign.center, 
+            style: GoogleFonts.raleway(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -1008,7 +1022,12 @@ Future<void> _toggleFavori(int restaurantId) async {
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Restaurant retiré des favoris'),
+          content: Text('Restaurant retiré des favoris', 
+            textAlign: TextAlign.center, 
+            style: GoogleFonts.raleway(
+              fontWeight: FontWeight.bold, 
+            ),
+          ),
           backgroundColor: Colors.grey,
         ),
       );
@@ -1021,7 +1040,11 @@ Future<void> _toggleFavori(int restaurantId) async {
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Restaurant ajouté aux favoris'),
+          content: Text('Restaurant ajouté aux favoris',
+            textAlign: TextAlign.center, 
+            style: GoogleFonts.raleway(
+              fontWeight: FontWeight.bold, 
+            ),),
           backgroundColor: Color(0xFFD4AF37),
         ),
       );
@@ -1038,7 +1061,12 @@ Future<void> _toggleFavori(int restaurantId) async {
     print('Erreur lors de la modification des favoris: $e');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Erreur: Impossible de modifier les favoris'),
+        content: Text('Erreur: Impossible de modifier les favoris',
+          textAlign: TextAlign.center, 
+            style: GoogleFonts.raleway(
+            fontWeight: FontWeight.bold, 
+          ),
+        ),
         backgroundColor: Colors.red,
       ),
     );
