@@ -336,7 +336,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context.push('/favoris');
               break;
             case 2:
-              context.push('/reviews');
+              context.push('/user-reviews');
               break;
             case 3:
               break;

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; 
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sae_mobile/views/favoris_cuisine.dart';
+import 'package:sae_mobile/views/user_reviews_page.dart';
 import 'providers/supabase_provider.dart';
 import 'views/welcome_page.dart';
 import 'views/login_page.dart';
@@ -16,18 +17,23 @@ import 'views/favoris_page.dart';
 import 'views/favoris_cuisine.dart';
 import 'views/profile_page.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   final supabaseProvider = SupabaseProvider();
-  final isConnected = await supabaseProvider.initialize();
+  bool isConnected = false;
+
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    isConnected = await supabaseProvider.initialize();
+  });
+
   runApp(MyApp(isConnected: isConnected, supabaseProvider: supabaseProvider));
 }
 
 class MyApp extends StatelessWidget {
   final bool isConnected;
   final SupabaseProvider supabaseProvider;
-  
+
   MyApp({required this.isConnected, required this.supabaseProvider, super.key});
 
   @override
@@ -91,11 +97,15 @@ class MyApp extends StatelessWidget {
         ),
         GoRoute(
           path: '/home-authentified',
-          builder: (context, state) => HomeAuthentifiedPage(supabaseProvider: supabaseProvider), // Add this route
+          builder: (context, state) => HomeAuthentifiedPage(supabaseProvider: supabaseProvider),
         ),
         GoRoute(
           path: '/profile',
           builder: (context, state) => ProfilePage(supabaseProvider: supabaseProvider),
+        ),
+        GoRoute(
+          path: '/user-reviews',
+          builder: (context, state) => UserReviewsPage(),
         ),
       ],
     );
