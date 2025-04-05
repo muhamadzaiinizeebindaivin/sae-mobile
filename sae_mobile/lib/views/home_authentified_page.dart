@@ -178,16 +178,6 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
                               onTap: () => context.push('/cuisines'),
                             ),
                             SizedBox(height: 20),
-                            _buildNavigationCard(
-                              context,
-                              title: 'Fav resto',
-                              description: 'Fav resto',
-                              icon: Icons.dinner_dining,
-                              color: goldColor,
-                              onTap: () => context.push('/favoris'),
-                            ),
-
-                            SizedBox(height: 20),
                           ],
                         ),
                       ),
