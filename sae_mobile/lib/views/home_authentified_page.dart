@@ -70,7 +70,7 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
       case 0:
         break;
       case 1:
-        context.push('/favorite-restaurants');
+        context.push('/favoris');
         break;
       case 2:
         context.push('/user-reviews');
