@@ -72,6 +72,33 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<Map<String, int>> _fetchUserStats() async {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser == null) return {'reviews': 0, 'favorites': 0};
+
+    try {
+      final reviewsResponse = await Supabase.instance.client
+          .from('critiquer')
+          .select('idrestaurant')
+          .eq('idutilisateur', _userData!['idutilisateur'])
+          .count();
+
+      final favoritesResponse = await Supabase.instance.client
+          .from('aimer')
+          .select('idrestaurant')
+          .eq('idutilisateur', _userData!['idutilisateur'])
+          .count();
+
+      return {
+        'reviews': reviewsResponse.count,
+        'favorites': favoritesResponse.count,
+      };
+    } catch (e) {
+      print('Erreur lors de la récupération des statistiques : $e');
+      return {'reviews': 0, 'favorites': 0};
+    }
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -108,7 +135,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final formValue = _formKey.currentState!.value;
       final currentUser = Supabase.instance.client.auth.currentUser;
-      
+
       if (currentUser == null) {
         throw Exception("Utilisateur non connecté");
       }
@@ -121,6 +148,11 @@ class _ProfilePageState extends State<ProfilePage> {
         throw Exception('Veuillez sélectionner un sexe !');
       }
 
+      final userId = _userData?['idutilisateur'];
+      if (userId == null) {
+        throw Exception('ID utilisateur non trouvé. Veuillez vous reconnecter.');
+      }
+
       final updatedData = {
         'nomutilisateur': formValue['nom'].trim(),
         'prenomutilisateur': formValue['prenom'].trim(),
@@ -131,7 +163,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (formValue['password'] != null && formValue['password'].toString().isNotEmpty) {
         updatedData['mdputilisateur'] = formValue['password'];
-        
+
         await Supabase.instance.client.auth.updateUser(
           UserAttributes(
             password: formValue['password'],
@@ -139,23 +171,43 @@ class _ProfilePageState extends State<ProfilePage> {
         );
       }
 
-      await Supabase.instance.client
+      final response = await Supabase.instance.client
           .from('utilisateur')
           .update(updatedData)
-          .eq('emailutilisateur', currentUser.email!);
+          .eq('idutilisateur', userId)
+          .select(); 
+
+      if (response.isEmpty) {
+        throw Exception('Aucune ligne mise à jour. Vérifiez l\'ID utilisateur ou les données.');
+      }
 
       setState(() {
         _isEditing = false;
+        _userData = response.first; 
       });
-      
-      await _fetchUserData();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profil mis à jour avec succès'),
+        SnackBar(
+          content: Center(
+            child: Text(
+              'Profil mis à jour avec succès',
+              style: TextStyle(
+                fontWeight: FontWeight.bold, 
+                color: Colors.white,
+              ),
+            ),
+          ),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating, 
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 100, 
+            left: 20,
+            right: 20,
+          ),
         ),
       );
+
     } catch (e) {
       setState(() {
         _errorMessage = 'Erreur lors de la mise à jour du profil : $e';
@@ -295,78 +347,86 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileView(Color goldColor) {
-    return Column(
-      children: [
-        Text(
-          '${_userData?['prenomutilisateur'] ?? ''} ${_userData?['nomutilisateur'] ?? ''}',
-          style: GoogleFonts.raleway(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: goldColor,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _userData?['emailutilisateur'] ?? '',
-          style: GoogleFonts.raleway(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 32),
-        _buildInfoSection(
-          title: 'Informations personnelles',
+    return FutureBuilder<Map<String, int>>(
+      future: _fetchUserStats(),
+      builder: (context, snapshot) {
+        int reviewsCount = snapshot.data?['reviews'] ?? 0;
+        int favoritesCount = snapshot.data?['favorites'] ?? 0;
+
+        return Column(
           children: [
-            _buildInfoItem(icon: Icons.calendar_today, title: 'Date de naissance', value: _selectedDate != null ? DateFormat('dd/MM/yyyy').format(_selectedDate!) : 'Non spécifiée'),
-            _buildInfoItem(icon: Icons.people, title: 'Sexe', value: _userData?['sexeutilisateur'] ?? 'Non spécifié'),
-            _buildInfoItem(icon: Icons.phone, title: 'Téléphone', value: _userData?['telephoneutilisateur'] ?? 'Non spécifié'),
-          ],
-        ),
-        const SizedBox(height: 32),
-        _buildInfoSection(
-          title: 'Statistiques',
-          children: [
-            _buildInfoItem(icon: Icons.star, title: 'Avis publiés', value: '0'),
-            _buildInfoItem(icon: Icons.favorite, title: 'Restaurants favoris', value: '0'),
-            _buildInfoItem(icon: Icons.calendar_today, title: 'Membre depuis', value: _userData != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(_userData!['created_at'] ?? DateTime.now().toIso8601String())) : 'Récemment'),
-          ],
-        ),
-        const SizedBox(height: 32),
-        ElevatedButton.icon(
-          onPressed: () async {
-            try {
-              await Supabase.instance.client.auth.signOut();
-              if (mounted) {
-                context.go('/');
-              }
-            } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Erreur de déconnexion : $e'),
-                  backgroundColor: Colors.red,
+            Text(
+              '${_userData?['prenomutilisateur'] ?? ''} ${_userData?['nomutilisateur'] ?? ''}',
+              style: GoogleFonts.raleway(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: goldColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _userData?['emailutilisateur'] ?? '',
+              style: GoogleFonts.raleway(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            _buildInfoSection(
+              title: 'Informations personnelles',
+              children: [
+                _buildInfoItem(icon: Icons.calendar_today, title: 'Date de naissance', value: _selectedDate != null ? DateFormat('dd/MM/yyyy').format(_selectedDate!) : 'Non spécifiée'),
+                _buildInfoItem(icon: Icons.people, title: 'Sexe', value: _userData?['sexeutilisateur'] ?? 'Non spécifié'),
+                _buildInfoItem(icon: Icons.phone, title: 'Téléphone', value: _userData?['telephoneutilisateur'] ?? 'Non spécifié'),
+              ],
+            ),
+            const SizedBox(height: 32),
+            _buildInfoSection(
+              title: 'Statistiques',
+              children: [
+                _buildInfoItem(icon: Icons.star, title: 'Avis publiés', value: reviewsCount.toString()),
+                _buildInfoItem(icon: Icons.favorite, title: 'Restaurants favoris', value: favoritesCount.toString()),
+                _buildInfoItem(icon: Icons.calendar_today, title: 'Membre depuis', value: _userData != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(_userData!['dateinscriptionutilisateur'] ?? DateTime.now().toIso8601String())) : 'Récemment'),
+              ],
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () async {
+                try {
+                  await Supabase.instance.client.auth.signOut();
+                  if (mounted) {
+                    context.go('/');
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erreur de déconnexion : $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              icon: Icon(Icons.logout, color: Colors.white),
+              label: Text(
+                'Se déconnecter',
+                style: GoogleFonts.raleway(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
-              );
-            }
-          },
-          icon: Icon(Icons.logout, color: Colors.white),
-          label: Text(
-            'Se déconnecter',
-            style: GoogleFonts.raleway(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: goldColor,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: goldColor,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
