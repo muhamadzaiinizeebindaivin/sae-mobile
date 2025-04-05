@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:go_router/go_router.dart';
+import 'package:sae_mobile/views/favoris_cuisine.dart';
 import 'providers/supabase_provider.dart';
 import 'views/welcome_page.dart';
 import 'views/login_page.dart';
