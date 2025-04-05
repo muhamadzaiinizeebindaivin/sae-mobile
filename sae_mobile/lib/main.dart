@@ -13,6 +13,7 @@ import 'views/cuisine_details_page.dart';
 import 'views/restaurant_details_page.dart';
 import 'views/home_authentified_page.dart';
 import 'views/favoris_page.dart';
+import 'views/favoris_cuisine.dart';
 import 'views/profile_page.dart';
 
 
