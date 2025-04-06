@@ -48,7 +48,7 @@ class _FavorisPageState extends State<FavorisPage> {
           appBar: PreferredSize(
             preferredSize: Size.fromHeight(kToolbarHeight),
             child: Container(
-              margin: EdgeInsets.only(bottom: 10.0), // Ajout du margin bottom
+              margin: EdgeInsets.only(bottom: 10.0),
               child: AppBar(
                 title: Text(
                   'Mes Favoris',

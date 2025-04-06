@@ -15,7 +15,7 @@ class RestaurantReviewsView extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: viewModel.goldColor, width: 2), // Changed to bottom border
+            bottom: BorderSide(color: viewModel.goldColor, width: 2), 
           ),
         ),
         child: Text(

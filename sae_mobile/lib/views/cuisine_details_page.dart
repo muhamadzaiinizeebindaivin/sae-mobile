@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 import '../providers/supabase_provider.dart';
+import '../viewmodels/cuisine_details_viewmodel.dart';
 
-class CuisineDetailsPage extends StatefulWidget {
+class CuisineDetailsPage extends StatelessWidget {
   final SupabaseProvider supabaseProvider;
   final int cuisineId;
   final String cuisineName;
@@ -17,157 +18,35 @@ class CuisineDetailsPage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _CuisineDetailsPageState createState() => _CuisineDetailsPageState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => CuisineDetailsViewModel(
+        cuisineId: cuisineId,
+        searchController: TextEditingController(),
+      )..loadData(),
+      child: _CuisineDetailsPageContent(cuisineName: cuisineName),
+    );
+  }
 }
 
-class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
-  List<Map<String, dynamic>> restaurants = [];
-  List<Map<String, dynamic>> allRestaurants = [];
-  List<Map<String, dynamic>> allCuisines = [];
-  Map<int, List<int>> restaurantCuisines = {};
-  Map<int, Map<String, dynamic>> cuisinesById = {};
-  List<String> restaurantTypes = [];
-  bool isLoading = true;
+class _CuisineDetailsPageContent extends StatelessWidget {
+  final String cuisineName;
   
-  int currentPage = 0;
-  final int itemsPerPage = 8;
-  int totalPages = 0;
-  
-  final TextEditingController searchController = TextEditingController();
-  List<Map<String, dynamic>> filteredRestaurants = [];
-  
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-    
-    searchController.addListener(() {
-      _filterRestaurants();
-    });
-  }
-  
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
-  }
-  
-  String formatRestaurantType(String type) {
-    if (type.isEmpty) return 'Non spécifié';
-    
-    String formatted = type.replaceAll(RegExp(r'[-_]'), ' ');
-    
-    return formatted[0].toUpperCase() + formatted.substring(1);
-  }
-  
-  Future<void> _loadData() async {
-    setState(() {
-      isLoading = true;
-    });
-    
-    try {
-      final restaurantResponse = await Supabase.instance.client
-          .from('restaurant')
-          .select('*')
-          .order('nomrestaurant', ascending: true);
-      List<Map<String, dynamic>> restaurantsList = List<Map<String, dynamic>>.from(restaurantResponse);
-      
-      final cuisineResponse = await Supabase.instance.client
-          .from('cuisine')
-          .select('*')
-          .order('nomcuisine', ascending: true);
-      List<Map<String, dynamic>> cuisinesList = List<Map<String, dynamic>>.from(cuisineResponse);
-      
-      final servirResponse = await Supabase.instance.client
-          .from('servir')
-          .select('idrestaurant, idcuisine');
-      List<Map<String, dynamic>> servirList = List<Map<String, dynamic>>.from(servirResponse);
-      
-      Map<int, Map<String, dynamic>> cuisinesMap = {};
-      for (var cuisine in cuisinesList) {
-        cuisinesMap[cuisine['idcuisine']] = cuisine;
-      }
-      
-      Map<int, List<int>> restaurantCuisinesMap = {};
-      for (var servir in servirList) {
-        int restaurantId = servir['idrestaurant'];
-        int cuisineId = servir['idcuisine'];
-        if (!restaurantCuisinesMap.containsKey(restaurantId)) {
-          restaurantCuisinesMap[restaurantId] = [];
-        }
-        restaurantCuisinesMap[restaurantId]!.add(cuisineId);
-      }
-      
-      List<Map<String, dynamic>> cuisineRestaurants = restaurantsList
-          .where((restaurant) {
-            final int restaurantId = restaurant['idrestaurant'];
-            return restaurantCuisinesMap.containsKey(restaurantId) &&
-                   restaurantCuisinesMap[restaurantId]!.contains(widget.cuisineId);
-          })
-          .toList();
-      
-      setState(() {
-        allRestaurants = restaurantsList;
-        allCuisines = cuisinesList;
-        restaurantCuisines = restaurantCuisinesMap;
-        cuisinesById = cuisinesMap;
-        restaurants = cuisineRestaurants;
-        filteredRestaurants = cuisineRestaurants;
-        isLoading = false;
-        _updateTotalPages();
-      });
-    } catch (e) {
-      print('Erreur lors du chargement des données: $e');
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-  
-  void _filterRestaurants() {
-    final query = searchController.text.toLowerCase();
-    
-    setState(() {
-      if (query.isEmpty) {
-        filteredRestaurants = restaurants;
-      } else {
-        filteredRestaurants = restaurants
-            .where((restaurant) => 
-                restaurant['nomrestaurant'].toString().toLowerCase().startsWith(query))
-            .toList();
-      }
-      currentPage = 0;
-      _updateTotalPages();
-    });
-  }
-  
-  void _updateTotalPages() {
-    totalPages = (filteredRestaurants.length / itemsPerPage).ceil();
-    if (totalPages == 0) totalPages = 1;
-  }
-  
-  List<Map<String, dynamic>> _getPaginatedRestaurants() {
-    final startIndex = currentPage * itemsPerPage;
-    final endIndex = (startIndex + itemsPerPage) > filteredRestaurants.length
-        ? filteredRestaurants.length
-        : startIndex + itemsPerPage;
-    
-    if (startIndex >= filteredRestaurants.length) {
-      return [];
-    }
-    
-    return filteredRestaurants.sublist(startIndex, endIndex);
-  }
+  const _CuisineDetailsPageContent({
+    Key? key,
+    required this.cuisineName,
+  }) : super(key: key);
   
   @override
   Widget build(BuildContext context) {
     final goldColor = Color(0xFFD4AF37);
-    final paginatedRestaurants = _getPaginatedRestaurants();
+    final viewModel = Provider.of<CuisineDetailsViewModel>(context);
+    final paginatedRestaurants = viewModel.getPaginatedRestaurants();
     
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Cuisine ${widget.cuisineName}',
+          'Cuisine $cuisineName',
           style: GoogleFonts.raleway(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -180,7 +59,7 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: isLoading
+      body: viewModel.isLoading
           ? Center(child: CircularProgressIndicator(color: goldColor))
           : Column(
               children: [
@@ -211,7 +90,7 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              widget.cuisineName,
+                              cuisineName,
                               style: GoogleFonts.raleway(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -226,7 +105,7 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                '${filteredRestaurants.length} restaurant${filteredRestaurants.length > 1 ? 's' : ''}',
+                                '${viewModel.filteredRestaurants.length} restaurant${viewModel.filteredRestaurants.length > 1 ? 's' : ''}',
                                 style: GoogleFonts.raleway(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -244,15 +123,15 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: TextField(
-                    controller: searchController,
+                    controller: viewModel.searchController,
                     decoration: InputDecoration(
                       hintText: 'Rechercher un restaurant...',
                       prefixIcon: Icon(Icons.search, color: goldColor),
-                      suffixIcon: searchController.text.isNotEmpty
+                      suffixIcon: viewModel.searchController.text.isNotEmpty
                           ? IconButton(
                               icon: Icon(Icons.clear),
                               onPressed: () {
-                                searchController.clear();
+                                viewModel.searchController.clear();
                               },
                             )
                           : null,
@@ -271,11 +150,11 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                 ),
                 
                 Expanded(
-                  child: filteredRestaurants.isEmpty
+                  child: viewModel.filteredRestaurants.isEmpty
                     ? Center(
                         child: Text(
-                          searchController.text.isNotEmpty
-                            ? 'Aucun restaurant trouvé pour "${searchController.text}"'
+                          viewModel.searchController.text.isNotEmpty
+                            ? 'Aucun restaurant trouvé pour "${viewModel.searchController.text}"'
                             : 'Aucun restaurant proposant cette cuisine',
                           style: GoogleFonts.raleway(
                             fontSize: 18,
@@ -297,7 +176,7 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                           itemBuilder: (context, index) {
                             final restaurant = paginatedRestaurants[index];
                             final restaurantName = restaurant['nomrestaurant'] ?? 'Sans nom';
-                            final restaurantType = formatRestaurantType(restaurant['typerestaurant']?.toString() ?? '');
+                            final restaurantType = viewModel.formatRestaurantType(restaurant['typerestaurant']?.toString() ?? '');
                             
                             return Card(
                               elevation: 4,
@@ -369,7 +248,7 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                       ),
                 ),
                 
-                if (!isLoading && filteredRestaurants.isNotEmpty)
+                if (!viewModel.isLoading && viewModel.filteredRestaurants.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: Row(
@@ -377,18 +256,14 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                       children: [
                         IconButton(
                           icon: Icon(Icons.arrow_back_ios),
-                          color: currentPage > 0 ? goldColor : Colors.grey,
-                          onPressed: currentPage > 0
-                              ? () {
-                                  setState(() {
-                                    currentPage--;
-                                  });
-                                }
+                          color: viewModel.currentPage > 0 ? goldColor : Colors.grey,
+                          onPressed: viewModel.currentPage > 0
+                              ? () => viewModel.previousPage()
                               : null,
                         ),
                         SizedBox(width: 8),
                         Text(
-                          '${currentPage + 1} / $totalPages',
+                          '${viewModel.currentPage + 1} / ${viewModel.totalPages}',
                           style: GoogleFonts.raleway(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -397,13 +272,9 @@ class _CuisineDetailsPageState extends State<CuisineDetailsPage> {
                         SizedBox(width: 8),
                         IconButton(
                           icon: Icon(Icons.arrow_forward_ios),
-                          color: currentPage < totalPages - 1 ? goldColor : Colors.grey,
-                          onPressed: currentPage < totalPages - 1
-                              ? () {
-                                  setState(() {
-                                    currentPage++;
-                                  });
-                                }
+                          color: viewModel.currentPage < viewModel.totalPages - 1 ? goldColor : Colors.grey,
+                          onPressed: viewModel.currentPage < viewModel.totalPages - 1
+                              ? () => viewModel.nextPage()
                               : null,
                         ),
                       ],
