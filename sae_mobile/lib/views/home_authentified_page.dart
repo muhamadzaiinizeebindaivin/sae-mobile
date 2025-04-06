@@ -1,217 +1,186 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
+import '../viewmodels/home_authentified_viewmodel.dart';
 
-class HomeAuthentifiedPage extends StatefulWidget {
+class HomeAuthentifiedPage extends StatelessWidget {
   final SupabaseProvider supabaseProvider;
-  
+
   const HomeAuthentifiedPage({
-    Key? key, 
+    Key? key,
     required this.supabaseProvider,
   }) : super(key: key);
 
   @override
-  _HomeAuthentifiedPageState createState() => _HomeAuthentifiedPageState();
-}
-
-class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
-  String? _userName;
-  int _selectedIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserDetails();
-  }
-
-  Future<void> _fetchUserDetails() async {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (currentUser != null) {
-      try {
-        final response = await Supabase.instance.client
-            .from('utilisateur')
-            .select('nomutilisateur, prenomutilisateur')
-            .eq('emailutilisateur', currentUser.email!)
-            .single();
-
-        setState(() {
-          _userName = '${response['prenomutilisateur']} ${response['nomutilisateur']}';
-        });
-      } catch (e) {
-        print('Erreur de récupération des détails utilisateur : $e');
-      }
-    }
-  }
-
-  void _logout() async {
-    try {
-      await Supabase.instance.client.auth.signOut();
-      if (mounted) {
-        context.go('/');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur de déconnexion : $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    
-    if (index == 1) {
-      context.push('/profile');
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final goldColor = Theme.of(context).primaryColor;
-    
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false, 
-        title: Text(
-          'IUTables\'O',
-          style: GoogleFonts.raleway(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: goldColor,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.logout, color: Colors.white),
-            onPressed: _logout,
-          ),
-        ],
+
+    return ChangeNotifierProvider(
+      create: (_) => HomeAuthentifiedViewModel(
+        supabaseClient: Supabase.instance.client
       ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Center(
-              child: Container(
-                constraints: BoxConstraints(maxWidth: 600),
-                margin: EdgeInsets.symmetric(horizontal: 16),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center, 
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 30),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Bienvenue${_userName != null ? ', $_userName' : ''}',
-                              style: GoogleFonts.raleway(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: goldColor,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            SizedBox(height: 10),
-                            Text(
-                              'Explorez les restaurants et cuisines d\'Orléans',
-                              style: GoogleFonts.raleway(
-                                fontSize: 16,
-                                color: Colors.black87,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Text(
+            'IUTables\'O',
+            style: GoogleFonts.raleway(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: goldColor,
+          centerTitle: true,
+          actions: [
+            Consumer<HomeAuthentifiedViewModel>(
+              builder: (context, viewModel, _) => IconButton(
+                icon: Icon(Icons.logout, color: Colors.white),
+                onPressed: () async {
+                  try {
+                    await viewModel.logout();
+                    context.go('/');
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('$e'),
+                        backgroundColor: Colors.red,
                       ),
-                      
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.asset(
-                            'assets/images/restaurant.jpg',
-                            width: double.infinity,
-                            height: 200,
-                            fit: BoxFit.cover,
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Center(
+                child: Container(
+                  constraints: BoxConstraints(maxWidth: 600),
+                  margin: EdgeInsets.symmetric(horizontal: 16),
+                  child: SingleChildScrollView(
+                    child: Consumer<HomeAuthentifiedViewModel>(
+                      builder: (context, viewModel, _) => Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 30),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Bienvenue${viewModel.userName != null ? ', ${viewModel.userName}' : ''}',
+                                  style: GoogleFonts.raleway(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: goldColor,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: 10),
+                                Text(
+                                  'Explorez les restaurants et cuisines d\'Orléans',
+                                  style: GoogleFonts.raleway(
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.asset(
+                                'assets/images/restaurant.jpg',
+                                width: double.infinity,
+                                height: 200,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildNavigationCard(
+                                  context,
+                                  title: 'Restaurants',
+                                  description: 'Parcourir tous les restaurants d\'Orléans',
+                                  icon: Icons.restaurant,
+                                  color: goldColor,
+                                  onTap: () => context.push('/restaurants'),
+                                ),
+                                SizedBox(height: 20),
+                                _buildNavigationCard(
+                                  context,
+                                  title: 'Types de cuisine',
+                                  description: 'Explorer les différentes cuisines',
+                                  icon: Icons.dinner_dining,
+                                  color: goldColor,
+                                  onTap: () => context.push('/cuisines'),
+                                ),
+                                SizedBox(height: 20),
+                                _buildNavigationCard(
+                                  context,
+                                  title: 'Favoris',
+                                  description: 'Consultez vos restaurants favoris',
+                                  icon: Icons.favorite,
+                                  color: goldColor,
+                                  onTap: () => context.push('/favoris'),
+                                ),
+                                SizedBox(height: 20),
+                                _buildNavigationCard(
+                                  context,
+                                  title: 'Critiques',
+                                  description: 'Vos avis et commentaires',
+                                  icon: Icons.rate_review,
+                                  color: goldColor,
+                                  onTap: () => context.push('/user-reviews'),
+                                ),
+                                SizedBox(height: 20),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildNavigationCard(
-                              context,
-                              title: 'Restaurants',
-                              description: 'Parcourir tous les restaurants d\'Orléans',
-                              icon: Icons.restaurant,
-                              color: goldColor,
-                              onTap: () => context.push('/restaurants'),
-                            ),
-                            SizedBox(height: 20),
-                            _buildNavigationCard(
-                              context,
-                              title: 'Types de cuisine',
-                              description: 'Explorer les différentes cuisines',
-                              icon: Icons.dinner_dining,
-                              color: goldColor,
-                              onTap: () => context.push('/cuisines'),
-                            ),
-                            SizedBox(height: 20),
-                            _buildNavigationCard(
-                              context,
-                              title: 'Favoris',
-                              description: 'Consultez vos restaurants favoris',
-                              icon: Icons.favorite,
-                              color: goldColor,
-                              onTap: () => context.push('/favoris'),
-                            ),
-                            SizedBox(height: 20),
-                            _buildNavigationCard(
-                              context,
-                              title: 'Critiques',
-                              description: 'Vos avis et commentaires',
-                              icon: Icons.rate_review,
-                              color: goldColor,
-                              onTap: () => context.push('/user-reviews'),
-                            ),
-                            SizedBox(height: 20),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          }
+              );
+            },
+          ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
+        bottomNavigationBar: Consumer<HomeAuthentifiedViewModel>(
+          builder: (context, viewModel, _) => BottomNavigationBar(
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: 'Accueil',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'Profil',
+              ),
+            ],
+            currentIndex: viewModel.selectedIndex,
+            selectedItemColor: goldColor,
+            unselectedItemColor: Colors.grey,
+            onTap: (index) {
+              viewModel.setSelectedIndex(index);
+              if (index == 1) {
+                context.push('/profile');
+              }
+            },
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: goldColor,
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
+        ),
       ),
     );
   }

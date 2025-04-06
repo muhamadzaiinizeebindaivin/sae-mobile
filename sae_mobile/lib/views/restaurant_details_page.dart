@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 import '../providers/supabase_provider.dart';
 import './restaurant_reviews.dart';
+import '../viewmodels/restaurant_details_viewmodel.dart';
 
-class RestaurantDetailsPage extends StatefulWidget {
+class RestaurantDetailsPage extends StatelessWidget {
   final SupabaseProvider supabaseProvider;
   final int restaurantId;
 
@@ -15,118 +16,9 @@ class RestaurantDetailsPage extends StatefulWidget {
     required this.restaurantId,
   }) : super(key: key);
 
-  @override
-  _RestaurantDetailsPageState createState() => _RestaurantDetailsPageState();
-}
-
-class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
-  Map<String, dynamic>? restaurantDetails;
-  Map<String, dynamic>? locationDetails;
-  List<Map<String, dynamic>> cuisines = [];
-  List<Map<String, dynamic>> openingHours = [];
-  List<Map<String, dynamic>> reviews = [];
-  bool isLoading = true;
-  bool hasUserReviewed = false;
-  Map<String, dynamic>? userReview;
-
   final Color goldColor = const Color(0xFFD4AF37);
   final Color darkBackgroundColor = const Color(0xFF1E1E1E);
   final Color softGrayColor = const Color(0xFFF5F5F5);
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchRestaurantDetails();
-  }
-
-  Future<void> _fetchRestaurantDetails() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final restaurantResponse = await Supabase.instance.client
-          .from('restaurant')
-          .select('*, localisation(*)')
-          .eq('idrestaurant', widget.restaurantId)
-          .maybeSingle();
-
-      if (restaurantResponse == null) {
-        throw Exception('Aucun restaurant trouvé pour l\'ID ${widget.restaurantId}');
-      }
-
-      final cuisinesResponse = await Supabase.instance.client
-          .from('servir')
-          .select('cuisine(idcuisine, nomcuisine)')
-          .eq('idrestaurant', widget.restaurantId);
-
-      final openingResponse = await Supabase.instance.client
-          .from('proposer')
-          .select('ouverture(jourouverture), horaire')
-          .eq('idrestaurant', widget.restaurantId);
-
-      final reviewsResponse = await Supabase.instance.client
-          .from('critiquer')
-          .select('notecritique, commentairecritique, datecritique, utilisateur(nomutilisateur, prenomutilisateur, idutilisateur)')
-          .eq('idrestaurant', widget.restaurantId)
-          .order('datecritique', ascending: false);
-
-      final reviewsList = List<Map<String, dynamic>>.from(reviewsResponse);
-      double averageRating = 0;
-      if (reviewsList.isNotEmpty) {
-        double totalRating = 0;
-        int ratingCount = 0;
-        for (var review in reviewsList) {
-          if (review['notecritique'] != null) {
-            totalRating += review['notecritique'];
-            ratingCount++;
-          }
-        }
-        if (ratingCount > 0) {
-          averageRating = totalRating / ratingCount;
-        }
-      }
-      
-      averageRating = (averageRating * 10).round() / 10;
-      
-      final updatedRestaurantDetails = Map<String, dynamic>.from(restaurantResponse);
-      updatedRestaurantDetails['notemoyenne'] = averageRating;
-
-      final user = Supabase.instance.client.auth.currentUser;
-      int? userId;
-      if (user != null) {
-        final userResponse = await Supabase.instance.client
-            .from('utilisateur')
-            .select('idutilisateur')
-            .eq('emailutilisateur', user.email!)
-            .single();
-        userId = userResponse['idutilisateur'];
-      }
-
-      setState(() {
-        restaurantDetails = updatedRestaurantDetails;
-        locationDetails = restaurantDetails?['localisation'];
-        cuisines = List<Map<String, dynamic>>.from(cuisinesResponse.map((item) => item['cuisine']));
-        openingHours = List<Map<String, dynamic>>.from(openingResponse);
-        reviews = reviewsList;
-        isLoading = false;
-
-        if (userId != null) {
-          userReview = reviewsList.firstWhere(
-            (review) => review['utilisateur']['idutilisateur'] == userId,
-            orElse: () => <String, dynamic>{},
-          );
-          hasUserReviewed = userReview!.isNotEmpty;
-        }
-      });
-    } catch (e) {
-      print('Erreur lors du chargement des détails du restaurant: $e');
-      setState(() {
-        isLoading = false;
-        restaurantDetails = null;
-      });
-    }
-  }
 
   String _formatPhoneNumber(String? phoneNumber) {
     if (phoneNumber == null || phoneNumber.isEmpty) return 'Non spécifié';
@@ -164,7 +56,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
       child: Container(
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: goldColor, width: 2),
+            bottom: BorderSide(color: goldColor, width: 2), 
           ),
         ),
         child: Text(
@@ -220,185 +112,193 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        context.pop();
-        return false;
-      },
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          elevation: 0,
-          title: Text(
-            'Détails du Restaurant',
-            style: GoogleFonts.raleway(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          backgroundColor: goldColor,
-          centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.pop(),
-          ),
-        ),
-        body: isLoading
-            ? Center(child: CircularProgressIndicator(color: goldColor))
-            : restaurantDetails == null
-                ? Center(
-                    child: Text(
-                      'Restaurant non trouvé',
-                      style: GoogleFonts.raleway(fontSize: 18),
-                    ),
-                  )
-                : SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(15),
-                                child: Image.asset(
-                                  'assets/images/restaurant.jpg',
-                                  width: double.infinity,
-                                  height: 250,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    borderRadius: const BorderRadius.only(
-                                      bottomLeft: Radius.circular(15),
-                                      bottomRight: Radius.circular(15),
+    return ChangeNotifierProvider(
+      create: (_) => RestaurantDetailsViewModel(restaurantId: restaurantId),
+      child: Consumer<RestaurantDetailsViewModel>(
+        builder: (context, viewModel, child) {
+          return WillPopScope(
+            onWillPop: () async {
+              context.pop();
+              return false;
+            },
+            child: Scaffold(
+              backgroundColor: Colors.white,
+              appBar: AppBar(
+                elevation: 0,
+                title: Text(
+                  'Détails du Restaurant',
+                  style: GoogleFonts.raleway(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                backgroundColor: goldColor,
+                centerTitle: true,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => context.pop(),
+                ),
+              ),
+              body: viewModel.isLoading
+                  ? Center(child: CircularProgressIndicator(color: goldColor))
+                  : viewModel.restaurantDetails == null
+                      ? Center(
+                          child: Text(
+                            'Restaurant non trouvé',
+                            style: GoogleFonts.raleway(fontSize: 18),
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(15),
+                                      child: Image.asset(
+                                        'assets/images/restaurant.jpg',
+                                        width: double.infinity,
+                                        height: 250,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                      colors: [
-                                        Colors.black.withOpacity(0.7),
-                                        Colors.transparent,
-                                      ],
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        restaurantDetails?['nomrestaurant'] ?? 'Sans nom',
-                                        style: GoogleFonts.raleway(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
+                                    Positioned(
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          borderRadius: const BorderRadius.only(
+                                            bottomLeft: Radius.circular(15),
+                                            bottomRight: Radius.circular(15),
+                                          ),
+                                          gradient: LinearGradient(
+                                            begin: Alignment.bottomCenter,
+                                            end: Alignment.topCenter,
+                                            colors: [
+                                              Colors.black.withOpacity(0.7),
+                                              Colors.transparent,
+                                            ],
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              viewModel.restaurantDetails?['nomrestaurant'] ?? 'Sans nom',
+                                              style: GoogleFonts.raleway(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.star, color: goldColor, size: 18),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  viewModel.restaurantDetails?['notemoyenne'] != null &&
+                                                          viewModel.restaurantDetails!['notemoyenne'] > 0
+                                                      ? '${viewModel.restaurantDetails!['notemoyenne']}/5 (${viewModel.reviews.length} avis)'
+                                                      : 'X/5',
+                                                  style: GoogleFonts.raleway(
+                                                    fontSize: 16,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      Row(
-                                        children: [
-                                          Icon(Icons.star, color: goldColor, size: 18),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            restaurantDetails?['notemoyenne'] != null && restaurantDetails!['notemoyenne'] > 0
-                                                ? '${restaurantDetails!['notemoyenne']}/5 (${reviews.length} avis)'
-                                                : 'X/5',
-                                            style: GoogleFonts.raleway(
-                                              fontSize: 16,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
+                                _buildSectionTitle('Informations Générales'),
+                                _buildInfoRow('Nom', viewModel.restaurantDetails?['nomrestaurant'] ?? 'Non spécifié'),
+                                _buildInfoRow('Note moyenne',
+                                    viewModel.restaurantDetails?['notemoyenne'] != null && viewModel.restaurantDetails!['notemoyenne'] > 0
+                                        ? '${viewModel.restaurantDetails!['notemoyenne']}/5 (${viewModel.reviews.length} avis)'
+                                        : 'X/5'),
+                                _buildInfoRow('Marque', viewModel.restaurantDetails?['marquerestaurant'] ?? 'Non spécifié'),
+                                _buildInfoRow('Gérant', viewModel.restaurantDetails?['gerantrestaurant'] ?? 'Non spécifié'),
+                                _buildInfoRow('SIRET', viewModel.restaurantDetails?['siretrestaurant'] ?? 'Non spécifié'),
+                                _buildInfoRow('Capacité',
+                                    viewModel.restaurantDetails?['capaciterestaurant'] != null
+                                        ? '${viewModel.restaurantDetails!['capaciterestaurant']} personnes'
+                                        : 'Non spécifié'),
+                                _buildSectionTitle('Cuisine'),
+                                _buildInfoRow('Établissement', _formatRestaurantType(viewModel.restaurantDetails?['typerestaurant'])),
+                                _buildInfoRow('Cuisine',
+                                    viewModel.cuisines.isNotEmpty
+                                        ? viewModel.cuisines.map((c) => _formatCuisineName(c['nomcuisine'])).join(', ')
+                                        : 'Non spécifié'),
+                                _buildInfoRow('Végétarien',
+                                    viewModel.restaurantDetails?['vegetarienrestaurant'] == true ? 'Oui' : 'Non'),
+                                _buildInfoRow('Vegan',
+                                    viewModel.restaurantDetails?['veganrestaurant'] == true ? 'Oui' : 'Non'),
+                                _buildSectionTitle('Localisation'),
+                                _buildInfoRow('Pays', viewModel.locationDetails?['payslocalisation'] ?? 'Non spécifié'),
+                                _buildInfoRow('Région', viewModel.locationDetails?['regionlocalisation'] ?? 'Non spécifié'),
+                                _buildInfoRow('Ville', viewModel.locationDetails?['villelocalisation'] ?? 'Non spécifié'),
+                                _buildInfoRow('Département', viewModel.locationDetails?['departementlocalisation'] ?? 'Non spécifié'),
+                                _buildInfoRow('Adresse',
+                                    viewModel.locationDetails?['adresselocalisation'] != null
+                                        ? '${viewModel.locationDetails!['adresselocalisation']}, '
+                                            '${viewModel.locationDetails!['codevillelocalisation'] ?? ''} '
+                                            '${viewModel.locationDetails!['villelocalisation'] ?? ''}'
+                                        : 'Non spécifié'),
+                                _buildInfoRow('Téléphone', _formatPhoneNumber(viewModel.restaurantDetails?['telephonerestaurant'])),
+                                _buildInfoRow('Coordonnées', viewModel.locationDetails?['coordonneeslocalisation'] ?? 'Non spécifié'),
+                                _buildInfoRow('OpenStreetMap', viewModel.locationDetails?['cartelien'] ?? 'Non spécifié'),
+                                _buildSectionTitle('Services'),
+                                _buildInfoRow('Livraison',
+                                    viewModel.restaurantDetails?['livraisonrestaurant'] == true ? 'Oui' : 'Non'),
+                                _buildInfoRow('À emporter',
+                                    viewModel.restaurantDetails?['emporterrestaurant'] == true ? 'Oui' : 'Non'),
+                                _buildInfoRow('Drive',
+                                    viewModel.restaurantDetails?['driverestaurant'] == true ? 'Oui' : 'Non'),
+                                _buildInfoRow('Wi-Fi/Internet',
+                                    viewModel.restaurantDetails?['internetrestaurant'] == true ? 'Oui' : 'Non'),
+                                _buildInfoRow('Accès handicapé',
+                                    viewModel.restaurantDetails?['handicaprestaurant'] == true ? 'Oui' : 'Non'),
+                                _buildInfoRow('Espace fumeur',
+                                    viewModel.restaurantDetails?['fumerrestaurant'] == true ? 'Oui' : 'Non'),
+                                _buildSectionTitle('Liens Externes'),
+                                _buildInfoRow('Site Web', viewModel.restaurantDetails?['sitewebrestaurant'] ?? 'Non spécifié'),
+                                _buildInfoRow('Facebook', viewModel.restaurantDetails?['facebookrestaurant'] ?? 'Non spécifié'),
+                                _buildInfoRow('Wikidata', viewModel.restaurantDetails?['wikidatalien'] ?? 'Non spécifié'),
+                                _buildSectionTitle('Horaires d\'ouverture'),
+                                viewModel.openingHours.isNotEmpty
+                                    ? Column(
+                                        children: viewModel.openingHours
+                                            .map((opening) => _buildInfoRow(
+                                                  _formatCuisineName(opening['ouverture']['jourouverture']),
+                                                  opening['horaire'] ?? 'Non spécifié',
+                                                ))
+                                            .toList(),
+                                      )
+                                    : _buildInfoRow('Horaires', 'Non spécifié'),
+                                RestaurantReviews(
+                                  restaurantId: restaurantId,
+                                  reviews: viewModel.reviews,
+                                  hasUserReviewed: viewModel.hasUserReviewed,
+                                  userReview: viewModel.userReview,
+                                  onReviewUpdated: viewModel.fetchRestaurantDetails,
+                                  goldColor: goldColor,
+                                  darkBackgroundColor: darkBackgroundColor,
+                                ),
+                              ],
+                            ),
                           ),
-                          _buildSectionTitle('Informations Générales'),
-                          _buildInfoRow('Nom', restaurantDetails?['nomrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Note moyenne',
-                              restaurantDetails?['notemoyenne'] != null && restaurantDetails!['notemoyenne'] > 0
-                                  ? '${restaurantDetails!['notemoyenne']}/5 (${reviews.length} avis)'
-                                  : 'X/5'),
-                          _buildInfoRow('Marque', restaurantDetails?['marquerestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Gérant', restaurantDetails?['gerantrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('SIRET', restaurantDetails?['siretrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Capacité',
-                              restaurantDetails?['capaciterestaurant'] != null
-                                  ? '${restaurantDetails!['capaciterestaurant']} personnes'
-                                  : 'Non spécifié'),
-                          _buildSectionTitle('Cuisine'),
-                          _buildInfoRow('Établissement', _formatRestaurantType(restaurantDetails?['typerestaurant'])),
-                          _buildInfoRow('Cuisine',
-                              cuisines.isNotEmpty
-                                  ? cuisines.map((c) => _formatCuisineName(c['nomcuisine'])).join(', ')
-                                  : 'Non spécifié'),
-                          _buildInfoRow('Végétarien',
-                              restaurantDetails?['vegetarienrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Vegan',
-                              restaurantDetails?['veganrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildSectionTitle('Localisation'),
-                          _buildInfoRow('Pays', locationDetails?['payslocalisation'] ?? 'Non spécifié'),
-                          _buildInfoRow('Région', locationDetails?['regionlocalisation'] ?? 'Non spécifié'),
-                          _buildInfoRow('Ville', locationDetails?['villelocalisation'] ?? 'Non spécifié'),
-                          _buildInfoRow('Département', locationDetails?['departementlocalisation'] ?? 'Non spécifié'),
-                          _buildInfoRow('Adresse',
-                              locationDetails?['adresselocalisation'] != null
-                                  ? '${locationDetails!['adresselocalisation']}, '
-                                      '${locationDetails!['codevillelocalisation'] ?? ''} '
-                                      '${locationDetails!['villelocalisation'] ?? ''}'
-                                  : 'Non spécifié'),
-                          _buildInfoRow('Téléphone', _formatPhoneNumber(restaurantDetails?['telephonerestaurant'])),
-                          _buildInfoRow('Coordonnées', locationDetails?['coordonneeslocalisation'] ?? 'Non spécifié'),
-                          _buildInfoRow('OpenStreetMap', locationDetails?['cartelien'] ?? 'Non spécifié'),
-                          _buildSectionTitle('Services'),
-                          _buildInfoRow('Livraison',
-                              restaurantDetails?['livraisonrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('À emporter',
-                              restaurantDetails?['emporterrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Drive',
-                              restaurantDetails?['driverestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Wi-Fi/Internet',
-                              restaurantDetails?['internetrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Accès handicapé',
-                              restaurantDetails?['handicaprestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildInfoRow('Espace fumeur',
-                              restaurantDetails?['fumerrestaurant'] == true ? 'Oui' : 'Non'),
-                          _buildSectionTitle('Liens Externes'),
-                          _buildInfoRow('Site Web', restaurantDetails?['sitewebrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Facebook', restaurantDetails?['facebookrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Wikidata', restaurantDetails?['wikidatalien'] ?? 'Non spécifié'),
-                          _buildSectionTitle('Horaires d\'ouverture'),
-                          openingHours.isNotEmpty
-                              ? Column(
-                                  children: openingHours
-                                      .map((opening) => _buildInfoRow(
-                                            _formatCuisineName(opening['ouverture']['jourouverture']),
-                                            opening['horaire'] ?? 'Non spécifié',
-                                          ))
-                                      .toList(),
-                                )
-                              : _buildInfoRow('Horaires', 'Non spécifié'),
-                          RestaurantReviews(
-                            restaurantId: widget.restaurantId,
-                            reviews: reviews,
-                            hasUserReviewed: hasUserReviewed,
-                            userReview: userReview,
-                            onReviewUpdated: _fetchRestaurantDetails,
-                            goldColor: goldColor,
-                            darkBackgroundColor: darkBackgroundColor,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                        ),
+            ),
+          );
+        },
       ),
     );
   }
