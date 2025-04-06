@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart'; // Ajout de Provider
+import 'package:sae_mobile/viewmodels/favoris_viewmodel.dart'; // Import du ViewModel
 import 'package:sae_mobile/views/favoris_cuisine.dart';
 import 'package:sae_mobile/views/user_reviews_page.dart';
 import 'providers/supabase_provider.dart';
@@ -14,7 +16,6 @@ import 'views/cuisine_details_page.dart';
 import 'views/restaurant_details_page.dart';
 import 'views/home_authentified_page.dart';
 import 'views/favoris_page.dart';
-import 'views/favoris_cuisine.dart';
 import 'views/profile_page.dart';
 
 void main() async {
@@ -23,6 +24,7 @@ void main() async {
   final supabaseProvider = SupabaseProvider();
   bool isConnected = false;
 
+  // Initialisation de Supabase (je suppose que initialize() configure Supabase.instance)
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     isConnected = await supabaseProvider.initialize();
   });
@@ -110,29 +112,36 @@ class MyApp extends StatelessWidget {
       ],
     );
 
-    return MaterialApp.router(
-      title: 'IUTables\'O',
-      theme: ThemeData(
-        primaryColor: goldColor,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: goldColor,
-          primary: goldColor,
+    // Utilisation de MultiProvider pour fournir FavorisViewModel
+    return MultiProvider(
+      providers: [
+        Provider<SupabaseProvider>.value(value: supabaseProvider),
+        ChangeNotifierProvider(create: (_) => FavorisViewModel()),
+      ],
+      child: MaterialApp.router(
+        title: 'IUTables\'O',
+        theme: ThemeData(
+          primaryColor: goldColor,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: goldColor,
+            primary: goldColor,
+          ),
+          fontFamily: 'Raleway',
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          useMaterial3: true,
         ),
-        fontFamily: 'Raleway',
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-        useMaterial3: true,
+        routerConfig: router,
+        debugShowCheckedModeBanner: false,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en', ''),
+          Locale('fr', 'FR'),
+        ],
       ),
-      routerConfig: router,
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('en', ''),
-        Locale('fr', 'FR'),
-      ],
     );
   }
 }
