@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
 
+
 class RestaurantsPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
   RestaurantsPage({
@@ -17,6 +18,7 @@ class RestaurantsPage extends StatefulWidget {
 
 class _RestaurantsPageState extends State<RestaurantsPage> {
   List<int> favoris = [];
+  
   List<Map<String, dynamic>> allRestaurants = [];
   List<Map<String, dynamic>> filteredRestaurants = [];
   List<Map<String, dynamic>> allCuisines = [];
@@ -283,13 +285,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              context.go('/home');
-            }
-          },
+          onPressed: () => context.pop(),
         ),
       ),
       body: Column(
@@ -753,132 +749,132 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                         child: ListView.builder(
                           itemCount: paginatedData.length,
                           itemBuilder: (context, index) {
-                            final restaurant = paginatedData[index];
-                            final restaurantType = _formatRestaurantType(restaurant['typerestaurant']);
-                            final restaurantId = restaurant['idrestaurant'];
-                            final isFavori = favoris.contains(restaurantId);
+                          final restaurant = paginatedData[index];
+                          final restaurantType = _formatRestaurantType(restaurant['typerestaurant']);
+                          final restaurantId = restaurant['idrestaurant'];
+                          final isFavori = favoris.contains(restaurantId);
 
-                            List<int> cuisineIds = restaurantCuisines[restaurantId] ?? [];
-                            List<String> cuisineNames = cuisineIds
-                                .map((id) => cuisinesById[id])
-                                .where((cuisine) => cuisine != null)
-                                .map((cuisine) => _formatCuisineName(cuisine!['nomcuisine'] ?? ''))
-                                .toList();
+                          List<int> cuisineIds = restaurantCuisines[restaurantId] ?? [];
+                          List<String> cuisineNames = cuisineIds
+                              .map((id) => cuisinesById[id])
+                              .where((cuisine) => cuisine != null)
+                              .map((cuisine) => _formatCuisineName(cuisine!['nomcuisine'] ?? ''))
+                              .toList();
 
-                            return Card(
-                              margin: EdgeInsets.only(bottom: 16.0),
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () {
-                                  context.push('/restaurant-details', extra: {
-                                    'restaurantId': restaurantId
-                                  });
-                                },
-                                child: SizedBox(
-                                  height: 130,
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 115,
-                                        height: 130,
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(12),
-                                            bottomLeft: Radius.circular(12),
-                                          ),
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(12),
-                                            bottomLeft: Radius.circular(12),
-                                          ),
-                                          child: Image.asset(
-                                            'assets/images/restaurant.jpg',
-                                            fit: BoxFit.cover,
-                                          ),
+                          return Card(
+                            margin: EdgeInsets.only(bottom: 16.0),
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                context.push('/restaurant-details', extra: {
+                                  'restaurantId': restaurantId
+                                });
+                              },
+                              child: SizedBox(
+                                height: 130, 
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 115,
+                                      height: 130, 
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: Radius.circular(12),
+                                          bottomLeft: Radius.circular(12),
                                         ),
                                       ),
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(12.0),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      restaurant['nomrestaurant'] ?? 'Sans nom',
-                                                      style: GoogleFonts.raleway(
-                                                        fontSize: 16,
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: Radius.circular(12),
+                                          bottomLeft: Radius.circular(12),
+                                        ),
+                                        child: Image.asset(
+                                          'assets/images/restaurant.jpg',
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(12.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    restaurant['nomrestaurant'] ?? 'Sans nom',
+                                                    style: GoogleFonts.raleway(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
                                                     ),
-                                                  ),
-                                                  if (isUserLoggedIn)
-                                                    IconButton(
-                                                      icon: Icon(
-                                                        isFavori ? Icons.favorite : Icons.favorite_border,
-                                                        color: isFavori ? Colors.red : Colors.grey,
-                                                      ),
-                                                      onPressed: () => _toggleFavori(restaurantId),
-                                                    ),
-                                                ],
-                                              ),
-                                              SizedBox(height: 6),
-                                              Text(
-                                                restaurantType,
-                                                style: GoogleFonts.raleway(
-                                                  fontSize: 14,
-                                                  color: Colors.black87,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              if (cuisineNames.isNotEmpty) ...[
-                                                SizedBox(height: 6),
-                                                SingleChildScrollView(
-                                                  scrollDirection: Axis.horizontal,
-                                                  child: Wrap(
-                                                    spacing: 4,
-                                                    runSpacing: 4,
-                                                    children: cuisineNames.map((name) => Container(
-                                                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: goldColor.withOpacity(0.1),
-                                                        borderRadius: BorderRadius.circular(8),
-                                                        border: Border.all(color: goldColor.withOpacity(0.3)),
-                                                      ),
-                                                      child: Text(
-                                                        name,
-                                                        style: GoogleFonts.raleway(
-                                                          fontSize: 12,
-                                                          color: Colors.black87,
-                                                        ),
-                                                      ),
-                                                    )).toList(),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
                                                 ),
+                                                if (isUserLoggedIn) 
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      isFavori ? Icons.favorite : Icons.favorite_border,
+                                                      color: isFavori ? Colors.red : Colors.grey,
+                                                    ),
+                                                    onPressed: () => _toggleFavori(restaurantId),
+                                                  ),
                                               ],
+                                            ),
+                                            SizedBox(height: 6),
+                                            Text(
+                                              restaurantType,
+                                              style: GoogleFonts.raleway(
+                                                fontSize: 14,
+                                                color: Colors.black87,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (cuisineNames.isNotEmpty) ...[
+                                              SizedBox(height: 6),
+                                              SingleChildScrollView(
+                                                scrollDirection: Axis.horizontal,
+                                                child: Wrap(
+                                                  spacing: 4,
+                                                  runSpacing: 4,
+                                                  children: cuisineNames.map((name) => Container(
+                                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: goldColor.withOpacity(0.1),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      border: Border.all(color: goldColor.withOpacity(0.3)),
+                                                    ),
+                                                    child: Text(
+                                                      name,
+                                                      style: GoogleFonts.raleway(
+                                                        fontSize: 12,
+                                                        color: Colors.black87,
+                                                      ),
+                                                    ),
+                                                  )).toList(),
+                                                ),
+                                              ),
                                             ],
-                                          ),
+                                          ],
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        }
+                        )
                       ),
           ),
           if (!isLoading && filteredRestaurants.isNotEmpty)
@@ -958,35 +954,45 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
       ),
     );
   }
-
-  Future<void> _loadFavoris() async {
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null || user.email == null) return;
-
-      final userResponse = await Supabase.instance.client
-          .from('utilisateur')
-          .select('idutilisateur')
-          .eq('emailutilisateur', user.email!)
-          .single();
-
-      int idUtilisateur = userResponse['idutilisateur'];
-
-      final response = await Supabase.instance.client
-          .from('aimer')
-          .select('idrestaurant')
-          .eq('idutilisateur', idUtilisateur);
-
-      setState(() {
-        favoris = response.map<int>((fav) => fav['idrestaurant'] as int).toList();
-        _applyFilters();
-      });
-      print('Favoris chargés: $favoris');
-    } catch (e) {
-      print('Erreur lors du chargement des favoris: $e');
+Future<void> _loadFavoris() async {
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || user.email == null) {
+      return;
     }
+
+    final userResponse = await Supabase.instance.client
+        .from('utilisateur')
+        .select('idutilisateur')
+        .eq('emailutilisateur', user.email!)
+        .single();
+    
+    int idUtilisateur = userResponse['idutilisateur'];
+    
+    final favoriResponse = await Supabase.instance.client
+        .from('aimer')
+        .select('idrestaurant')
+        .eq('idutilisateur', idUtilisateur);
+    
+    if (favoriResponse is List) {
+      setState(() {
+        favoris = favoriResponse.map<int>((item) => item['idrestaurant'] as int).toList();
+      });
+    } else {
+      setState(() {
+        favoris = (favoriResponse as List<dynamic>)
+            .map<int>((item) => item['idrestaurant'] as int)
+            .toList();
+      });
+    }
+    
+    print('Favoris chargés: $favoris');
+  } catch (e) {
+    print('Erreur lors du chargement des favoris: $e');
   }
-  Future<void> _toggleFavori(int restaurantId) async {
+}
+
+Future<void> _toggleFavori(int restaurantId) async {
   try {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null || user.email == null) {
@@ -1012,17 +1018,23 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
     bool isFavori = favoris.contains(restaurantId);
 
     if (isFavori) {
-      // Modification ici: Ne pas utiliser .select().maybeSingle() après delete()
+      print('Suppression du favori: userID=$idUtilisateur, restaurantID=$restaurantId');
+      
+      // Exécuter la requête DELETE sans aucune vérification
       await Supabase.instance.client
           .from('aimer')
           .delete()
-          .match({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
+          .eq('idutilisateur', idUtilisateur)
+          .eq('idrestaurant', restaurantId);
       
-      // Si aucune exception n'est levée, on considère que la suppression a réussi
+      // Mettre à jour l'état local immédiatement
       setState(() {
         favoris.remove(restaurantId);
         _applyFilters();
       });
+      
+      // Rafraîchir les favoris depuis la base de données
+      await _loadFavoris();
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1090,5 +1102,5 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
       ),
     );
   }
-} 
+}
 }
