@@ -1,64 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sae_mobile/viewmodels/user_reviews_viewmodel.dart';
 
-class UserReviewsPage extends StatefulWidget {
-  const UserReviewsPage({Key? key}) : super(key: key);
+class UserReviewsView extends StatefulWidget {
+  const UserReviewsView({Key? key}) : super(key: key);
 
   @override
-  _UserReviewsPageState createState() => _UserReviewsPageState();
+  _UserReviewsViewState createState() => _UserReviewsViewState();
 }
 
-class _UserReviewsPageState extends State<UserReviewsPage> {
-  List<Map<String, dynamic>> reviews = [];
-  bool isLoading = true;
-  String? errorMessage;
-  List<bool> hoveredStates = [];
+class _UserReviewsViewState extends State<UserReviewsView> {
+  late UserReviewsViewModel viewModel;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserReviews();
-  }
-
-  Future<void> _fetchUserReviews() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
-    try {
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('Utilisateur non connecté');
-      }
-
-      final userResponse = await Supabase.instance.client
-          .from('utilisateur')
-          .select('idutilisateur')
-          .eq('emailutilisateur', currentUser.email!)
-          .single();
-
-      int userId = userResponse['idutilisateur'];
-
-      final reviewsResponse = await Supabase.instance.client
-          .from('critiquer')
-          .select('idrestaurant, notecritique, commentairecritique, datecritique, restaurant(nomrestaurant)')
-          .eq('idutilisateur', userId)
-          .order('datecritique', ascending: false);
-
-      setState(() {
-        reviews = List<Map<String, dynamic>>.from(reviewsResponse);
-        hoveredStates = List.generate(reviews.length, (_) => false);
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        errorMessage = 'Erreur lors de la récupération des critiques : $e';
-        isLoading = false;
-      });
-      print('Erreur lors de la récupération des critiques : $e');
-    }
+    viewModel = UserReviewsViewModel(
+      onStateChanged: () => setState(() {}), // Callback to rebuild UI
+    );
+    viewModel.fetchUserReviews();
   }
 
   Widget _buildReviewCard(Map<String, dynamic> review, int index) {
@@ -70,31 +30,19 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
     final goldColor = Theme.of(context).primaryColor;
 
     return MouseRegion(
-      onEnter: (_) {
-        setState(() {
-          hoveredStates[index] = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          hoveredStates[index] = false;
-        });
-      },
+      onEnter: (_) => viewModel.setHovered(index, true),
+      onExit: (_) => viewModel.setHovered(index, false),
       child: AnimatedContainer(
         duration: Duration(milliseconds: 200),
-        transform: Matrix4.identity()..scale(hoveredStates[index] ? 1.02 : 1.0),
+        transform: Matrix4.identity()..scale(viewModel.hoveredStates[index] ? 1.02 : 1.0),
         transformAlignment: Alignment.center,
         child: Card(
-          elevation: hoveredStates[index] ? 8 : 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          color: hoveredStates[index] ? Colors.grey[100] : Colors.white,
+          elevation: viewModel.hoveredStates[index] ? 8 : 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: viewModel.hoveredStates[index] ? Colors.grey[100] : Colors.white,
           margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
           child: InkWell(
-            onTap: () {
-              context.push('/restaurant-details', extra: {'restaurantId': restaurantId});
-            },
+            onTap: () => context.push('/restaurant-details', extra: {'restaurantId': restaurantId}),
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -106,11 +54,7 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
                       color: goldColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(
-                      Icons.restaurant,
-                      color: goldColor,
-                      size: 30,
-                    ),
+                    child: Icon(Icons.restaurant, color: goldColor, size: 30),
                   ),
                   SizedBox(width: 16),
                   Expanded(
@@ -120,53 +64,30 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              restaurantName,
-                              style: TextStyle(
-                                fontFamily: 'Raleway',
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            Text(
-                              date,
-                              style: TextStyle(
-                                fontFamily: 'Raleway',
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
+                            Text(restaurantName,
+                                style: TextStyle(
+                                    fontFamily: 'Raleway', fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            Text(date,
+                                style: TextStyle(fontFamily: 'Raleway', fontSize: 12, color: Colors.grey)),
                           ],
                         ),
                         SizedBox(height: 4),
                         Row(
-                          children: List.generate(5, (index) {
-                            return Icon(
-                              index < rating ? Icons.star : Icons.star_border,
-                              color: goldColor,
-                              size: 16,
-                            );
-                          }),
+                          children: List.generate(5, (index) => Icon(
+                                index < rating ? Icons.star : Icons.star_border,
+                                color: goldColor,
+                                size: 16,
+                              )),
                         ),
                         SizedBox(height: 4),
-                        Text(
-                          comment,
-                          style: TextStyle(
-                            fontFamily: 'Raleway',
-                            fontSize: 14,
-                            color: Colors.black54,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        Text(comment,
+                            style: TextStyle(fontFamily: 'Raleway', fontSize: 14, color: Colors.black54),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: Colors.grey,
-                  ),
+                  Icon(Icons.chevron_right, color: Colors.grey),
                 ],
               ),
             ),
@@ -182,14 +103,8 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Mes Critiques',
-          style: TextStyle(
-            fontFamily: 'Raleway',
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+        title: Text('Mes Critiques',
+            style: TextStyle(fontFamily: 'Raleway', fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: goldColor,
         centerTitle: true,
         leading: IconButton(
@@ -197,35 +112,19 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
           onPressed: () => context.go('/home-authentified'),
         ),
       ),
-      body: isLoading
+      body: viewModel.isLoading
           ? Center(child: CircularProgressIndicator(color: goldColor))
-          : errorMessage != null
+          : viewModel.errorMessage != null
               ? Center(
-                  child: Text(
-                    errorMessage!,
-                    style: TextStyle(
-                      fontFamily: 'Raleway',
-                      fontSize: 16,
-                      color: Colors.red,
-                    ),
-                  ),
-                )
-              : reviews.isEmpty
+                  child: Text(viewModel.errorMessage!,
+                      style: TextStyle(fontFamily: 'Raleway', fontSize: 16, color: Colors.red)))
+              : viewModel.reviews.isEmpty
                   ? Center(
-                      child: Text(
-                        'Aucune critique pour le moment.',
-                        style: TextStyle(
-                          fontFamily: 'Raleway',
-                          fontSize: 16,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    )
+                      child: Text('Aucune critique pour le moment.',
+                          style: TextStyle(fontFamily: 'Raleway', fontSize: 16, color: Colors.black54)))
                   : ListView.builder(
-                      itemCount: reviews.length,
-                      itemBuilder: (context, index) {
-                        return _buildReviewCard(reviews[index], index);
-                      },
+                      itemCount: viewModel.reviews.length,
+                      itemBuilder: (context, index) => _buildReviewCard(viewModel.reviews[index], index),
                     ),
     );
   }

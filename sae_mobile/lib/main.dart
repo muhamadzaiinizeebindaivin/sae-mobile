@@ -106,7 +106,7 @@ class MyApp extends StatelessWidget {
         ),
         GoRoute(
           path: '/user-reviews',
-          builder: (context, state) => UserReviewsPage(),
+          builder: (context, state) => UserReviewsView(),
         ),
       ],
     );
