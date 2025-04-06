@@ -1,71 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
+import '../viewmodels/login_viewmodel.dart';
 import '../providers/supabase_provider.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginView extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
 
-  const LoginPage({
-    Key? key, 
-    required this.supabaseProvider
+  const LoginView({
+    Key? key,
+    required this.supabaseProvider,
   }) : super(key: key);
 
   @override
-  _LoginPageState createState() => _LoginPageState();
+  _LoginViewState createState() => _LoginViewState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginViewState extends State<LoginView> {
+  late LoginViewModel viewModel;
   final _formKey = GlobalKey<FormBuilderState>();
-  bool _isLoading = false;
-  bool _obscurePassword = true;
-  String? _errorMessage;
 
-  Future<void> _signIn() async {
-    if (!_formKey.currentState!.saveAndValidate()) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final formValue = _formKey.currentState!.value;
-      final response = await Supabase.instance.client.auth.signInWithPassword(
-        email: formValue['email'].trim(),
-        password: formValue['password'],
-      );
-
-      if (response.user != null) {
-        if (mounted) {
-          context.push('/home-authentified');
-        }
-      }
-    } on AuthException catch (e) {
-      setState(() {
-        switch (e.message) {
-          case 'Invalid login credentials':
-            _errorMessage = 'Email ou mot de passe incorrect !';
-            break;
-          case 'Email not confirmed':
-            _errorMessage = 'Veuillez confirmer votre email avant de vous connecter !';
-            break;
-          default:
-            _errorMessage = 'Erreur de connexion : ${e.message}';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Une erreur inattendue est survenue';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    viewModel = LoginViewModel(
+      supabaseProvider: widget.supabaseProvider,
+      onStateChanged: () => setState(() {}),
+    );
   }
 
   @override
@@ -77,10 +40,7 @@ class _LoginPageState extends State<LoginPage> {
         automaticallyImplyLeading: false,
         title: Text(
           'IUTables\'O',
-          style: GoogleFonts.raleway(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: GoogleFonts.raleway(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: goldColor,
         centerTitle: true,
@@ -92,11 +52,7 @@ class _LoginPageState extends State<LoginPage> {
               top: 8,
               left: 8,
               child: IconButton(
-                icon: Icon(
-                  Icons.arrow_back,
-                  color: goldColor,
-                  size: 28,
-                ),
+                icon: Icon(Icons.arrow_back, color: goldColor, size: 28),
                 onPressed: () => context.pop(),
               ),
             ),
@@ -110,23 +66,15 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Icon(
-                          Icons.login_rounded,
-                          size: 70,
-                          color: goldColor,
-                        ),
+                        Icon(Icons.login_rounded, size: 70, color: goldColor),
                         const SizedBox(height: 24),
                         Text(
                           'Connexion',
-                          style: GoogleFonts.raleway(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: goldColor,
-                          ),
+                          style: GoogleFonts.raleway(fontSize: 28, fontWeight: FontWeight.bold, color: goldColor),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
-                        if (_errorMessage != null)
+                        if (viewModel.errorMessage != null)
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
@@ -136,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             child: Center(
                               child: Text(
-                                _errorMessage!,
+                                viewModel.errorMessage!,
                                 style: TextStyle(color: Colors.red.shade800),
                                 textAlign: TextAlign.center,
                               ),
@@ -146,18 +94,7 @@ class _LoginPageState extends State<LoginPage> {
                         FormBuilderTextField(
                           name: 'email',
                           keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            hintText: 'exemple@email.com',
-                            prefixIcon: Icon(Icons.email, color: goldColor),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: goldColor, width: 2),
-                            ),
-                          ),
+                          decoration: _inputDecoration('Email', Icons.email, goldColor, hintText: 'exemple@email.com'),
                           validator: FormBuilderValidators.compose([
                             FormBuilderValidators.required(errorText: 'Veuillez entrer votre email'),
                             FormBuilderValidators.email(errorText: 'Veuillez entrer un email valide'),
@@ -166,73 +103,46 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 16),
                         FormBuilderTextField(
                           name: 'password',
-                          obscureText: _obscurePassword,
-                          decoration: InputDecoration(
-                            labelText: 'Mot de passe',
-                            prefixIcon: Icon(Icons.lock, color: goldColor),
+                          obscureText: viewModel.obscurePassword,
+                          decoration: _inputDecoration('Mot de passe', Icons.lock, goldColor).copyWith(
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                viewModel.obscurePassword ? Icons.visibility : Icons.visibility_off,
                                 color: goldColor,
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: goldColor, width: 2),
+                              onPressed: viewModel.togglePasswordVisibility,
                             ),
                           ),
                           validator: FormBuilderValidators.compose([
-                            FormBuilderValidators.required(
-                                errorText: 'Veuillez entrer votre mot de passe'),
-                            FormBuilderValidators.minLength(6,
-                                errorText: 'Le mot de passe doit contenir au moins 6 caractères'),
+                            FormBuilderValidators.required(errorText: 'Veuillez entrer votre mot de passe'),
+                            FormBuilderValidators.minLength(6, errorText: 'Le mot de passe doit contenir au moins 6 caractères'),
                           ]),
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton(
-                          onPressed: _isLoading ? null : _signIn,
+                          onPressed: viewModel.isLoading ? null : () => viewModel.signIn(context, _formKey),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: goldColor,
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: _isLoading
+                          child: viewModel.isLoading
                               ? CircularProgressIndicator(color: Colors.white)
                               : Text(
                                   'Se connecter',
-                                  style: GoogleFonts.raleway(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
+                                  style: GoogleFonts.raleway(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                                 ),
                         ),
                         const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              'Vous n\'avez pas de compte ?',
-                              style: GoogleFonts.raleway(),
-                            ),
+                            Text('Vous n\'avez pas de compte ?', style: GoogleFonts.raleway()),
                             TextButton(
                               onPressed: () => context.push('/register'),
                               child: Text(
                                 'S\'inscrire',
-                                style: GoogleFonts.raleway(
-                                  fontWeight: FontWeight.bold,
-                                  color: goldColor,
-                                ),
+                                style: GoogleFonts.raleway(fontWeight: FontWeight.bold, color: goldColor),
                               ),
                             ),
                           ],
@@ -245,6 +155,19 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon, Color goldColor, {String? hintText}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hintText,
+      prefixIcon: Icon(icon, color: goldColor),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: goldColor, width: 2),
       ),
     );
   }
