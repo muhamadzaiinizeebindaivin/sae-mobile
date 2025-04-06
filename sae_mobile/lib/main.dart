@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sae_mobile/views/favoris_cuisine.dart';
+import 'package:sae_mobile/views/favoris_cuisine_page.dart';
 import 'package:sae_mobile/views/user_reviews_page.dart';
 import 'providers/supabase_provider.dart';
 import 'views/welcome_page.dart';
@@ -14,7 +14,6 @@ import 'views/cuisine_details_page.dart';
 import 'views/restaurant_details_page.dart';
 import 'views/home_authentified_page.dart';
 import 'views/favoris_page.dart';
-import 'views/favoris_cuisine.dart';
 import 'views/profile_page.dart';
 
 void main() async {

@@ -66,18 +66,8 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
       _selectedIndex = index;
     });
     
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        context.push('/favoris');
-        break;
-      case 2:
-        context.push('/user-reviews');
-        break;
-      case 3:
-        context.push('/profile');
-        break;
+    if (index == 1) {
+      context.push('/profile');
     }
   }
 
@@ -178,46 +168,24 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
                               onTap: () => context.push('/cuisines'),
                             ),
                             SizedBox(height: 20),
-                          ],
-                        ),
-                      ),
-                      
-                      Padding(
-                        padding: const EdgeInsets.only(top: 20, bottom: 10),
-                        child: Text(
-                          'À la une',
-                          style: GoogleFonts.raleway(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: goldColor,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 30),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _buildFeaturedCard(
-                                context,
-                                title: 'Mieux notés',
-                                icon: Icons.star,
-                                color: goldColor,
-                                onTap: () => context.push('/top-rated'),
-                              ),
+                            _buildNavigationCard(
+                              context,
+                              title: 'Favoris',
+                              description: 'Consultez vos restaurants favoris',
+                              icon: Icons.favorite,
+                              color: goldColor,
+                              onTap: () => context.push('/favoris'),
                             ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: _buildFeaturedCard(
-                                context,
-                                title: 'À proximité',
-                                icon: Icons.near_me,
-                                color: goldColor,
-                                onTap: () => context.push('/nearby'),
-                              ),
+                            SizedBox(height: 20),
+                            _buildNavigationCard(
+                              context,
+                              title: 'Critiques',
+                              description: 'Vos avis et commentaires',
+                              icon: Icons.rate_review,
+                              color: goldColor,
+                              onTap: () => context.push('/user-reviews'),
                             ),
+                            SizedBox(height: 20),
                           ],
                         ),
                       ),
@@ -236,14 +204,6 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
             label: 'Accueil',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Favoris',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.rate_review),
-            label: 'Critiques',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profil',
           ),
@@ -251,7 +211,6 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
         currentIndex: _selectedIndex,
         selectedItemColor: goldColor,
         unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
         onTap: _onItemTapped,
       ),
     );
@@ -315,55 +274,6 @@ class _HomeAuthentifiedPageState extends State<HomeAuthentifiedPage> {
               Icon(
                 Icons.chevron_right,
                 color: Colors.grey,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildFeaturedCard(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 30,
-                ),
-              ),
-              SizedBox(height: 12),
-              Text(
-                title,
-                style: GoogleFonts.raleway(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
