@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sae_mobile/viewmodels/restaurant_reviews_viewmodel.dart';
+import 'package:sae_mobile/views/restaurant_reviews.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
-import './restaurant_reviews.dart';
 
 class RestaurantDetailsPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
@@ -200,6 +201,17 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Instantiate the ViewModel for RestaurantReviews
+    final reviewsViewModel = RestaurantReviewsViewModel(
+      restaurantId: widget.restaurantId,
+      reviews: reviews,
+      hasUserReviewed: hasUserReviewed,
+      userReview: userReview,
+      onReviewUpdated: _fetchRestaurantDetails,
+      goldColor: goldColor,
+      darkBackgroundColor: darkBackgroundColor,
+    );
+
     return WillPopScope(
       onWillPop: () async {
         context.pop();
@@ -351,15 +363,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                                       .toList(),
                                 )
                               : _buildInfoRow('Horaires', 'Non spécifié'),
-                          RestaurantReviews(
-                            restaurantId: widget.restaurantId,
-                            reviews: reviews,
-                            hasUserReviewed: hasUserReviewed,
-                            userReview: userReview,
-                            onReviewUpdated: _fetchRestaurantDetails,
-                            goldColor: goldColor,
-                            darkBackgroundColor: darkBackgroundColor,
-                          ),
+                          RestaurantReviewsView(viewModel: reviewsViewModel),
                         ],
                       ),
                     ),
