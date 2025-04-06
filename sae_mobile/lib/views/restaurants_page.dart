@@ -986,106 +986,109 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
       print('Erreur lors du chargement des favoris: $e');
     }
   }
-
   Future<void> _toggleFavori(int restaurantId) async {
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null || user.email == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Vous devez être connecté pour gérer vos favoris',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      final userResponse = await Supabase.instance.client
-          .from('utilisateur')
-          .select('idutilisateur')
-          .eq('emailutilisateur', user.email!)
-          .single();
-
-      int idUtilisateur = userResponse['idutilisateur'];
-      bool isFavori = favoris.contains(restaurantId);
-
-      if (isFavori) {
-        final deleteResponse = await Supabase.instance.client
-            .from('aimer')
-            .delete()
-            .match({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId})
-            .select()
-            .maybeSingle();
-
-        if (deleteResponse != null) {
-          setState(() {
-            favoris.remove(restaurantId);
-            _applyFilters();
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Restaurant retiré des favoris',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
-              ),
-              backgroundColor: Colors.grey,
-            ),
-          );
-        }
-      } else {
-        final existingFavori = await Supabase.instance.client
-            .from('aimer')
-            .select()
-            .eq('idutilisateur', idUtilisateur)
-            .eq('idrestaurant', restaurantId)
-            .maybeSingle();
-
-        if (existingFavori == null) {
-          await Supabase.instance.client.from('aimer').insert({
-            'idutilisateur': idUtilisateur,
-            'idrestaurant': restaurantId,
-            'dateaime': DateTime.now().toIso8601String().split('T')[0],
-          });
-
-          setState(() {
-            favoris.add(restaurantId);
-            _applyFilters();
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Restaurant ajouté aux favoris',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
-              ),
-              backgroundColor: Color(0xFFD4AF37),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Ce restaurant est déjà dans vos favoris',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      print('Erreur lors de la modification des favoris: $e');
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || user.email == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur: Impossible de modifier les favoris',
+          content: Text(
+            'Vous devez être connecté pour gérer vos favoris',
             textAlign: TextAlign.center,
             style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
           ),
           backgroundColor: Colors.red,
         ),
       );
+      return;
     }
+
+    final userResponse = await Supabase.instance.client
+        .from('utilisateur')
+        .select('idutilisateur')
+        .eq('emailutilisateur', user.email!)
+        .single();
+    int idUtilisateur = userResponse['idutilisateur'];
+    bool isFavori = favoris.contains(restaurantId);
+
+    if (isFavori) {
+      // Modification ici: Ne pas utiliser .select().maybeSingle() après delete()
+      await Supabase.instance.client
+          .from('aimer')
+          .delete()
+          .match({'idutilisateur': idUtilisateur, 'idrestaurant': restaurantId});
+      
+      // Si aucune exception n'est levée, on considère que la suppression a réussi
+      setState(() {
+        favoris.remove(restaurantId);
+        _applyFilters();
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Restaurant retiré des favoris',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.grey,
+        ),
+      );
+    } else {
+      final existingFavori = await Supabase.instance.client
+          .from('aimer')
+          .select()
+          .eq('idutilisateur', idUtilisateur)
+          .eq('idrestaurant', restaurantId)
+          .maybeSingle();
+
+      if (existingFavori == null) {
+        await Supabase.instance.client.from('aimer').insert({
+          'idutilisateur': idUtilisateur,
+          'idrestaurant': restaurantId,
+          'dateaime': DateTime.now().toIso8601String().split('T')[0],
+        });
+
+        setState(() {
+          favoris.add(restaurantId);
+          _applyFilters();
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Restaurant ajouté aux favoris',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Color(0xFFD4AF37),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ce restaurant est déjà dans vos favoris',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    print('Erreur lors de la modification des favoris: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Erreur: Impossible de modifier les favoris',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+} 
 }
