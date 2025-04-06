@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sae_mobile/viewmodels/restaurant_reviews_viewmodel.dart';
+import 'package:sae_mobile/views/restaurant_reviews.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
-import './restaurant_reviews.dart';
 
 class RestaurantDetailsPage extends StatefulWidget {
   final SupabaseProvider supabaseProvider;
@@ -71,27 +72,6 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
           .eq('idrestaurant', widget.restaurantId)
           .order('datecritique', ascending: false);
 
-      final reviewsList = List<Map<String, dynamic>>.from(reviewsResponse);
-      double averageRating = 0;
-      if (reviewsList.isNotEmpty) {
-        double totalRating = 0;
-        int ratingCount = 0;
-        for (var review in reviewsList) {
-          if (review['notecritique'] != null) {
-            totalRating += review['notecritique'];
-            ratingCount++;
-          }
-        }
-        if (ratingCount > 0) {
-          averageRating = totalRating / ratingCount;
-        }
-      }
-      
-      averageRating = (averageRating * 10).round() / 10;
-      
-      final updatedRestaurantDetails = Map<String, dynamic>.from(restaurantResponse);
-      updatedRestaurantDetails['notemoyenne'] = averageRating;
-
       final user = Supabase.instance.client.auth.currentUser;
       int? userId;
       if (user != null) {
@@ -103,8 +83,9 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
         userId = userResponse['idutilisateur'];
       }
 
+      final reviewsList = List<Map<String, dynamic>>.from(reviewsResponse);
       setState(() {
-        restaurantDetails = updatedRestaurantDetails;
+        restaurantDetails = restaurantResponse;
         locationDetails = restaurantDetails?['localisation'];
         cuisines = List<Map<String, dynamic>>.from(cuisinesResponse.map((item) => item['cuisine']));
         openingHours = List<Map<String, dynamic>>.from(openingResponse);
@@ -220,6 +201,17 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Instantiate the ViewModel for RestaurantReviews
+    final reviewsViewModel = RestaurantReviewsViewModel(
+      restaurantId: widget.restaurantId,
+      reviews: reviews,
+      hasUserReviewed: hasUserReviewed,
+      userReview: userReview,
+      onReviewUpdated: _fetchRestaurantDetails,
+      goldColor: goldColor,
+      darkBackgroundColor: darkBackgroundColor,
+    );
+
     return WillPopScope(
       onWillPop: () async {
         context.pop();
@@ -300,21 +292,6 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                                           color: Colors.white,
                                         ),
                                       ),
-                                      Row(
-                                        children: [
-                                          Icon(Icons.star, color: goldColor, size: 18),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            restaurantDetails?['notemoyenne'] != null && restaurantDetails!['notemoyenne'] > 0
-                                                ? '${restaurantDetails!['notemoyenne']}/5 (${reviews.length} avis)'
-                                                : 'X/5',
-                                            style: GoogleFonts.raleway(
-                                              fontSize: 16,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
                                     ],
                                   ),
                                 ),
@@ -323,10 +300,10 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                           ),
                           _buildSectionTitle('Informations Générales'),
                           _buildInfoRow('Nom', restaurantDetails?['nomrestaurant'] ?? 'Non spécifié'),
-                          _buildInfoRow('Note moyenne',
-                              restaurantDetails?['notemoyenne'] != null && restaurantDetails!['notemoyenne'] > 0
-                                  ? '${restaurantDetails!['notemoyenne']}/5 (${reviews.length} avis)'
-                                  : 'X/5'),
+                          _buildInfoRow('Étoiles',
+                              restaurantDetails?['etoilerestaurant'] != null
+                                  ? '${restaurantDetails!['etoilerestaurant']}/5'
+                                  : 'Non spécifié'),
                           _buildInfoRow('Marque', restaurantDetails?['marquerestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('Gérant', restaurantDetails?['gerantrestaurant'] ?? 'Non spécifié'),
                           _buildInfoRow('SIRET', restaurantDetails?['siretrestaurant'] ?? 'Non spécifié'),
@@ -386,15 +363,7 @@ class _RestaurantDetailsPageState extends State<RestaurantDetailsPage> {
                                       .toList(),
                                 )
                               : _buildInfoRow('Horaires', 'Non spécifié'),
-                          RestaurantReviews(
-                            restaurantId: widget.restaurantId,
-                            reviews: reviews,
-                            hasUserReviewed: hasUserReviewed,
-                            userReview: userReview,
-                            onReviewUpdated: _fetchRestaurantDetails,
-                            goldColor: goldColor,
-                            darkBackgroundColor: darkBackgroundColor,
-                          ),
+                          RestaurantReviewsView(viewModel: reviewsViewModel),
                         ],
                       ),
                     ),
