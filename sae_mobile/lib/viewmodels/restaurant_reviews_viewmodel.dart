@@ -21,7 +21,7 @@ class RestaurantReviewsViewModel {
     required this.goldColor,
     required this.darkBackgroundColor,
   }) {
-    _initializeSortedReviews();
+    _sortReviews();
   }
 
   List<Map<String, dynamic>> get sortedReviews => List.from(reviews);
@@ -41,27 +41,23 @@ class RestaurantReviewsViewModel {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red : goldColor, // Updated to use goldColor
+        backgroundColor: isError ? Colors.red : goldColor,
       ),
     );
   }
 
-  void _initializeSortedReviews() {
+  void _sortReviews() {
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null && reviews.isNotEmpty) {
-      Future.microtask(() async {
-        try {
-          final currentUserId = await _getUserId();
-          final userReviewIndex = reviews.indexWhere(
-            (review) => review['utilisateur']['idutilisateur'] == (currentUserId ?? userReview?['utilisateur']?['idutilisateur']),
-          );
-          if (userReviewIndex != -1) {
-            final userReviewItem = reviews.removeAt(userReviewIndex);
-            reviews.insert(0, userReviewItem);
-          }
-        } catch (e) {
+      if (userReview != null && userReview!.isNotEmpty) {
+        final userReviewIndex = reviews.indexWhere(
+          (review) => review['utilisateur']['idutilisateur'] == userReview!['utilisateur']['idutilisateur'],
+        );
+        if (userReviewIndex != -1) {
+          final userReviewItem = reviews.removeAt(userReviewIndex);
+          reviews.insert(0, userReviewItem);
         }
-      });
+      }
     }
   }
 
