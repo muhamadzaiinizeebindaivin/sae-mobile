@@ -115,7 +115,7 @@ class _LoginViewState extends State<LoginView> {
                           ),
                           validator: FormBuilderValidators.compose([
                             FormBuilderValidators.required(errorText: 'Veuillez entrer votre mot de passe'),
-                            FormBuilderValidators.minLength(6, errorText: 'Le mot de passe doit contenir au moins 6 caractères'),
+                            FormBuilderValidators.minLength(8, errorText: 'Le mot de passe doit contenir au moins 8 caractères'),
                           ]),
                         ),
                         const SizedBox(height: 24),
