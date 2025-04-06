@@ -49,11 +49,11 @@ class MyApp extends StatelessWidget {
         ),
         GoRoute(
           path: '/login',
-          builder: (context, state) => LoginPage(supabaseProvider: supabaseProvider),
+          builder: (context, state) => LoginView(supabaseProvider: supabaseProvider),
         ),
         GoRoute(
           path: '/register',
-          builder: (context, state) => RegisterPage(supabaseProvider: supabaseProvider),
+          builder: (context, state) => RegisterView(supabaseProvider: supabaseProvider),
         ),
         GoRoute(
           path: '/home',
