@@ -28,7 +28,7 @@ class _RegisterViewState extends State<RegisterView> {
     super.initState();
     viewModel = RegisterViewModel(
       supabaseProvider: widget.supabaseProvider,
-      onStateChanged: () => setState(() {}), // Callback to rebuild UI
+      onStateChanged: () => setState(() {}),
     );
   }
 
@@ -49,14 +49,7 @@ class _RegisterViewState extends State<RegisterView> {
       body: SafeArea(
         child: Stack(
           children: [
-            Positioned(
-              top: 8,
-              left: 8,
-              child: IconButton(
-                icon: Icon(Icons.arrow_back, color: goldColor, size: 28),
-                onPressed: () => context.pop(),
-              ),
-            ),
+            // Form content
             Center(
               child: SingleChildScrollView(
                 child: Padding(
@@ -233,6 +226,15 @@ class _RegisterViewState extends State<RegisterView> {
                     ),
                   ),
                 ),
+              ),
+            ),
+            // Back button (placed after form to ensure it’s on top)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: IconButton(
+                icon: Icon(Icons.arrow_back, color: goldColor, size: 28),
+                onPressed: () => context.go('/'), // Navigate to main page
               ),
             ),
           ],
