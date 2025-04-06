@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart'; // Ajout de Provider
-import 'package:sae_mobile/viewmodels/favoris_viewmodel.dart'; // Import du ViewModel
-import 'package:sae_mobile/views/favoris_cuisine.dart';
-import 'package:sae_mobile/views/user_reviews_page.dart';
+import 'package:provider/provider.dart';
+import 'viewmodels/favoris_viewmodel.dart';
+import 'views/favoris_cuisine_page.dart';
+import 'views/user_reviews_page.dart';
 import 'providers/supabase_provider.dart';
 import 'views/welcome_page.dart';
 import 'views/login_page.dart';
@@ -24,7 +24,6 @@ void main() async {
   final supabaseProvider = SupabaseProvider();
   bool isConnected = false;
 
-  // Initialisation de Supabase (je suppose que initialize() configure Supabase.instance)
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     isConnected = await supabaseProvider.initialize();
   });
@@ -112,7 +111,6 @@ class MyApp extends StatelessWidget {
       ],
     );
 
-    // Utilisation de MultiProvider pour fournir FavorisViewModel
     return MultiProvider(
       providers: [
         Provider<SupabaseProvider>.value(value: supabaseProvider),

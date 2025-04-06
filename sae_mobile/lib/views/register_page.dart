@@ -75,7 +75,11 @@ class _RegisterPageState extends State<RegisterPage> {
           .maybeSingle();
 
       if (emailCheck != null) {
-        throw Exception('Cet email est déjà utilisé !');
+        setState(() {
+          _errorMessage = 'Ce compte existe déjà ! Veuillez utiliser un autre email !';
+          _isLoading = false;
+        });
+        return;
       }
 
       if (_selectedDate == null) {
@@ -134,7 +138,7 @@ class _RegisterPageState extends State<RegisterPage> {
             _errorMessage = 'Le mot de passe est trop faible !';
             break;
           case 'User already registered':
-            _errorMessage = 'Cet email est déjà enregistré !';
+            _errorMessage = 'Ce compte existe déjà ! Veuillez utiliser un autre email ou vous connecter.';
             break;
           default:
             _errorMessage = 'Erreur d\'inscription : ${e.message}';
@@ -142,12 +146,14 @@ class _RegisterPageState extends State<RegisterPage> {
       });
     } on PostgrestException catch (e) {
       setState(() {
-        _errorMessage = 'Erreur de base de données : ${e.message}';
+        _errorMessage = e.message.contains('duplicate key')
+            ? 'Ce compte existe déjà ! Veuillez utiliser un autre email ou vous connecter.'
+            : 'Erreur de base de données : ${e.message}';
       });
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().contains('existe déjà')
-            ? 'Cet email est déjà utilisé !'
+        _errorMessage = e.toString().contains('existe déjà') || e.toString().contains('duplicate')
+            ? 'Ce compte existe déjà ! Veuillez utiliser un autre email ou vous connecter.'
             : 'Une erreur est survenue lors de l\'inscription !';
       });
     } finally {

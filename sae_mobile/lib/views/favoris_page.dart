@@ -1,9 +1,7 @@
-// lib/views/favoris_page.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/supabase_provider.dart';
 import '../viewmodels/favoris_viewmodel.dart';
 
@@ -47,19 +45,25 @@ class _FavorisPageState extends State<FavorisPage> {
     return Consumer<FavorisViewModel>(
       builder: (context, viewModel, child) {
         return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              'Mes Favoris',
-              style: GoogleFonts.raleway(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+          appBar: PreferredSize(
+            preferredSize: Size.fromHeight(kToolbarHeight),
+            child: Container(
+              margin: EdgeInsets.only(bottom: 10.0), // Ajout du margin bottom
+              child: AppBar(
+                title: Text(
+                  'Mes Favoris',
+                  style: GoogleFonts.raleway(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                backgroundColor: goldColor,
+                centerTitle: true,
+                leading: IconButton(
+                  icon: Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => context.go('/home-authentified'),
+                ),
               ),
-            ),
-            backgroundColor: goldColor,
-            centerTitle: true,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => context.go('/home-authentified'),
             ),
           ),
           body: viewModel.isLoading

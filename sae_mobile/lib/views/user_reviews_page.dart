@@ -13,6 +13,7 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
   List<Map<String, dynamic>> reviews = [];
   bool isLoading = true;
   String? errorMessage;
+  List<bool> hoveredStates = [];
 
   @override
   void initState() {
@@ -48,6 +49,7 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
 
       setState(() {
         reviews = List<Map<String, dynamic>>.from(reviewsResponse);
+        hoveredStates = List.generate(reviews.length, (_) => false);
         isLoading = false;
       });
     } catch (e) {
@@ -59,127 +61,118 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
     }
   }
 
-  Widget _buildReviewCard(Map<String, dynamic> review) {
+  Widget _buildReviewCard(Map<String, dynamic> review, int index) {
     final String restaurantName = review['restaurant']['nomrestaurant'] ?? 'Restaurant inconnu';
     final int rating = review['notecritique'];
     final String comment = review['commentairecritique'] ?? 'Aucun commentaire';
     final String date = review['datecritique'].toString().split(' ')[0];
     final int restaurantId = review['idrestaurant'];
-    final goldColor = Theme.of(context).primaryColor; // Use the same goldColor as HomePage
+    final goldColor = Theme.of(context).primaryColor;
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        bool isHovered = false;
-
-        return MouseRegion(
-          onEnter: (_) {
-            setState(() {
-              isHovered = true;
-            });
-          },
-          onExit: (_) {
-            setState(() {
-              isHovered = false;
-            });
-          },
-          child: AnimatedContainer(
-            duration: Duration(milliseconds: 200),
-            transform: Matrix4.identity()..scale(isHovered ? 1.02 : 1.0),
-            transformAlignment: Alignment.center,
-            child: Card(
-              elevation: isHovered ? 8 : 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              color: isHovered ? Colors.grey[100] : Colors.white,
-              margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-              child: InkWell(
-                onTap: () {
-                  context.push('/restaurant-details', extra: {'restaurantId': restaurantId});
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      // Icon on the left with goldColor
-                      Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: goldColor.withOpacity(0.1), // Match HomePage
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.restaurant,
-                          color: goldColor, // Match HomePage
-                          size: 30,
-                        ),
-                      ),
-                      SizedBox(width: 16),
-                      // Middle section with restaurant name, rating, and comment
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() {
+          hoveredStates[index] = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          hoveredStates[index] = false;
+        });
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        transform: Matrix4.identity()..scale(hoveredStates[index] ? 1.02 : 1.0),
+        transformAlignment: Alignment.center,
+        child: Card(
+          elevation: hoveredStates[index] ? 8 : 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          color: hoveredStates[index] ? Colors.grey[100] : Colors.white,
+          margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+          child: InkWell(
+            onTap: () {
+              context.push('/restaurant-details', extra: {'restaurantId': restaurantId});
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: goldColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.restaurant,
+                      color: goldColor,
+                      size: 30,
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  restaurantName,
-                                  style: TextStyle(
-                                    fontFamily: 'Raleway',
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                Text(
-                                  date,
-                                  style: TextStyle(
-                                    fontFamily: 'Raleway',
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 4),
-                            Row(
-                              children: List.generate(5, (index) {
-                                return Icon(
-                                  index < rating ? Icons.star : Icons.star_border,
-                                  color: goldColor, // Match the star color with goldColor
-                                  size: 16,
-                                );
-                              }),
-                            ),
-                            SizedBox(height: 4),
                             Text(
-                              comment,
+                              restaurantName,
                               style: TextStyle(
                                 fontFamily: 'Raleway',
-                                fontSize: 14,
-                                color: Colors.black54,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              date,
+                              style: TextStyle(
+                                fontFamily: 'Raleway',
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      // Chevron on the right
-                      Icon(
-                        Icons.chevron_right,
-                        color: Colors.grey,
-                      ),
-                    ],
+                        SizedBox(height: 4),
+                        Row(
+                          children: List.generate(5, (index) {
+                            return Icon(
+                              index < rating ? Icons.star : Icons.star_border,
+                              color: goldColor,
+                              size: 16,
+                            );
+                          }),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          comment,
+                          style: TextStyle(
+                            fontFamily: 'Raleway',
+                            fontSize: 14,
+                            color: Colors.black54,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey,
+                  ),
+                ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -231,7 +224,7 @@ class _UserReviewsPageState extends State<UserReviewsPage> {
                   : ListView.builder(
                       itemCount: reviews.length,
                       itemBuilder: (context, index) {
-                        return _buildReviewCard(reviews[index]);
+                        return _buildReviewCard(reviews[index], index);
                       },
                     ),
     );

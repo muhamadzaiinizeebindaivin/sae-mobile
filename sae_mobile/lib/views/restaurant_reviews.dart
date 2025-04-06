@@ -128,27 +128,27 @@ class RestaurantReviews extends StatelessWidget {
         contentPadding: const EdgeInsets.all(16.0),
         content: SizedBox(
           width: double.maxFinite,
-          height: MediaQuery.of(context).size.height * 0.5,
+          height: MediaQuery.of(context).size.height * 0.30,
           child: SingleChildScrollView(
             child: FormBuilder(
               key: formKey,
               child: StatefulBuilder(
                 builder: (dialogContext, setState) => Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(hasUserReviewed ? 'Modifier avis' : 'Laisser un avis',
                         style: GoogleFonts.raleway(
                             fontWeight: FontWeight.bold, fontSize: 18, color: darkBackgroundColor)),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12), 
                     Text('Notez le restaurant', style: GoogleFonts.raleway(fontSize: 16)),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4), 
                     FormBuilderField<int>(
                       name: 'rating',
                       initialValue: rating,
                       validator: (value) => value == null || value == 0 ? 'Veuillez sélectionner une note' : null,
                       builder: (field) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -158,6 +158,7 @@ class RestaurantReviews extends StatelessWidget {
                                     color: goldColor,
                                     size: 20,
                                   ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4), 
                                   onPressed: () {
                                     setState(() {
                                       rating = index + 1;
@@ -168,29 +169,38 @@ class RestaurantReviews extends StatelessWidget {
                           ),
                           if (field.hasError)
                             Padding(
-                              padding: const EdgeInsets.only(top: 4.0),
+                              padding: const EdgeInsets.only(top: 2.0), 
                               child: Text(field.errorText!, style: const TextStyle(color: Colors.red, fontSize: 12)),
                             ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    FormBuilderTextField(
-                      name: 'comment',
-                      initialValue: initialComment,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'Votre commentaire',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    const SizedBox(height: 12), 
+                    SizedBox(
+                      width: double.infinity,
+                      child: FormBuilderTextField(
+                        name: 'comment',
+                        initialValue: initialComment,
+                        maxLines: 4, 
+                        textAlign: TextAlign.left,
+                        decoration: InputDecoration(
+                          labelText: 'Votre commentaire',
+                          alignLabelWithHint: false, 
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8), 
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Veuillez entrer un commentaire' : null,
                       ),
-                      validator: (value) => value == null || value.trim().isEmpty ? 'Veuillez entrer un commentaire' : null,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12), 
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         TextButton(
                           onPressed: () => Navigator.pop(dialogContext),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          ),
                           child: const Text('Annuler', style: TextStyle(color: Colors.grey)),
                         ),
                         if (hasUserReviewed)
@@ -210,10 +220,18 @@ class RestaurantReviews extends StatelessWidget {
                                 _showSnackBar(context, 'Erreur lors de la suppression : $e', isError: true);
                               }
                             },
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), 
+                            ),
                             child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
                           ),
+                        const SizedBox(width: 8),
                         ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: goldColor, minimumSize: const Size(100, 36)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: goldColor, 
+                            minimumSize: const Size(90, 32),
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0), 
+                          ),
                           onPressed: () async {
                             if (formKey.currentState!.saveAndValidate()) {
                               final formData = formKey.currentState!.value;
@@ -250,7 +268,7 @@ class RestaurantReviews extends StatelessWidget {
                             }
                           },
                           child: Text(hasUserReviewed ? 'Modifier' : 'Soumettre',
-                              style: GoogleFonts.raleway(color: Colors.white)),
+                              style: GoogleFonts.raleway(color: Colors.white, fontSize: 13)),
                         ),
                       ],
                     ),
@@ -271,11 +289,7 @@ class RestaurantReviews extends StatelessWidget {
 
     if (user != null) {
       Future.microtask(() async {
-        try {
-          currentUserId = await _getUserId();
-        } catch (e) {
-          // Pas d'action nécessaire ici
-        }
+        currentUserId = await _getUserId();
       });
     }
 
@@ -297,20 +311,17 @@ class RestaurantReviews extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSectionTitle('Critiques'),
-            ElevatedButton(
-              onPressed: () {
-                if (user == null) {
-                  _showSnackBar(context, 'Vous devez être connecté pour laisser un avis', isError: true);
-                  return;
-                }
-                _showReviewDialog(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: goldColor),
-              child: Text(
-                hasUserReviewed ? 'Modifier mon avis' : 'Ajouter avis',
-                style: GoogleFonts.raleway(color: Colors.white, fontWeight: FontWeight.bold),
+            if (user != null)
+              ElevatedButton(
+                onPressed: () {
+                  _showReviewDialog(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: goldColor),
+                child: Text(
+                  hasUserReviewed ? 'Modifier mon avis' : 'Ajouter avis',
+                  style: GoogleFonts.raleway(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
           ],
         ),
         sortedReviews.isNotEmpty
